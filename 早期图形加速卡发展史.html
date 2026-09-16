@@ -1,0 +1,425 @@
+<title>从帧缓冲到 GPU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#EEF0EB; --surface:#F7F8F5; --ink:#1B221F; --muted:#5C6661; --rule:#CFD5CD;
+  --copper:#B5641C; --copper-soft:#E9D3BF; --green:#2A6B50; --green-soft:#D6E5DC;
+  --cpu:#DDE1DA; --code:#E6E9E3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141917; --surface:#1C2320; --ink:#E4E8E2; --muted:#98A39C; --rule:#2D3733;
+    --copper:#DB8F4A; --copper-soft:#4A3220; --green:#6CBF97; --green-soft:#1F3A2E;
+    --cpu:#262E2A; --code:#222A26;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1C2320; --ink:#E4E8E2; --muted:#98A39C; --rule:#2D3733;
+  --copper:#DB8F4A; --copper-soft:#4A3220; --green:#6CBF97; --green-soft:#1F3A2E;
+  --cpu:#262E2A; --code:#222A26;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16px; line-height:1.75;
+  padding-block:0 6rem; padding-inline:clamp(16px,4vw,40px);
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+a{color:var(--green)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--copper);outline-offset:2px}
+.wrap{max-width:900px;margin:0 auto}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+h1{font-size:clamp(2rem,5vw,3.1rem);line-height:1.15;margin:.5rem 0 1rem;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:1.1rem;max-width:68ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--muted)}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:900px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.82rem;font-family:"IBM Plex Mono",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--copper)}
+section{padding-block:3rem 0}
+h2{font-size:1.55rem;font-weight:600;margin:0 0 .25rem;letter-spacing:-.01em;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--copper);display:block;letter-spacing:.1em;margin-bottom:.35rem}
+h3{font-size:1.12rem;font-weight:600;margin:2rem 0 .5rem;text-wrap:balance}
+.span{font-family:"IBM Plex Mono",monospace;color:var(--muted);font-size:.85rem;margin:0 0 1.25rem}
+p,li{max-width:68ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:600}
+.callout{border-left:3px solid var(--copper);background:var(--surface);padding:.9rem 1.1rem;margin:1.5rem 0;max-width:72ch}
+.callout p{margin:0}
+.tbl{overflow-x:auto;margin:1.25rem 0;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;line-height:1.5;min-width:600px}
+th,td{padding:.55rem .7rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:600;font-size:.78rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.y{font-family:"IBM Plex Mono",monospace;white-space:nowrap;font-variant-numeric:tabular-nums}
+td b{font-weight:600}
+.cpu{color:var(--muted)}
+.hw{color:var(--copper);font-weight:600}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:4px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:.82rem;line-height:1.55;max-width:100%}
+/* takeover grid */
+.grid-wrap{overflow-x:auto;margin:1.5rem 0 .5rem;padding-bottom:.5rem}
+.grid{display:grid;grid-template-columns:10.5em repeat(8,minmax(5.6em,1fr));gap:3px;min-width:760px;font-size:.78rem}
+.grid .hd{font-family:"IBM Plex Mono",monospace;color:var(--muted);padding:.3rem .4rem;font-size:.75rem;border-bottom:1px solid var(--rule)}
+.grid .lab{padding:.45rem .5rem;font-weight:500;line-height:1.3;display:flex;align-items:center;background:var(--surface)}
+.grid .c{min-height:3.2em;background:var(--cpu);position:relative}
+.grid .c.on{background:var(--copper-soft);box-shadow:inset 3px 0 0 var(--copper)}
+.grid .c.on.first{background:var(--copper);color:#fff}
+.grid .c.pro{background:var(--green-soft);box-shadow:inset 3px 0 0 var(--green)}
+.grid .c span{position:absolute;inset:0;padding:.3rem .4rem;font-family:"IBM Plex Mono",monospace;font-size:.68rem;line-height:1.25;overflow:hidden}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:.78rem;color:var(--muted);font-family:"IBM Plex Mono",monospace;margin-bottom:1rem}
+.legend i{display:inline-block;width:.9em;height:.9em;vertical-align:-.1em;margin-right:.4em;border-radius:2px}
+.pipe{display:flex;flex-wrap:wrap;gap:.35rem;margin:1.25rem 0;font-family:"IBM Plex Mono",monospace;font-size:.76rem}
+.pipe span{background:var(--surface);border:1px solid var(--rule);padding:.25rem .55rem;border-radius:3px}
+.pipe span.g{border-color:var(--green);color:var(--green)}
+.pipe span.r{border-color:var(--copper);color:var(--copper)}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+footer ul{columns:2;column-gap:2rem;padding-left:1.1rem}
+footer li{max-width:none;break-inside:avoid;margin-block:.2rem}
+@media (max-width:640px){footer ul{columns:1}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Graphics accelerator history · 1968–1999</div>
+  <h1>从帧缓冲到 GPU：早期图形加速卡如何逐段接管渲染管线</h1>
+  <p class="lede">显示硬件用了近二十年，把 2D/3D 渲染管线从 CPU 手里一段一段接过来。这份调研按管线阶段追踪每一次接管对应的芯片与显卡，并把图形 API 的演变放在同一条时间线上，终点定在 1999 年 NVIDIA 用 GeForce 256 给出 "GPU" 的定义。</p>
+  <div class="meta"><span>整理：2026-09-15</span><span>日期以发布或出货为准</span><span>来源分歧处随文注明</span></div>
+</header>
+</div>
+
+<nav class="toc"><ol>
+<li><a href="#frame">框架</a></li>
+<li><a href="#vector">矢量时代</a></li>
+<li><a href="#sgi">工作站</a></li>
+<li><a href="#pc2d">PC 2D</a></li>
+<li><a href="#gen1">3D 第一代</a></li>
+<li><a href="#gen2">第二代</a></li>
+<li><a href="#gen3">第三代</a></li>
+<li><a href="#gpu">GeForce 256</a></li>
+<li><a href="#api">API</a></li>
+<li><a href="#refs">来源</a></li>
+</ol></nav>
+
+<div class="wrap">
+
+<section id="frame">
+<h2><span class="num">00 · 阅读框架</span>渲染管线与硬件接管的顺序</h2>
+<p>先把 1990 年代的固定功能管线摆出来，后面每一章都在说"这一段是谁、在哪一年、用哪颗芯片搬进硬件的"。</p>
+<div class="pipe">
+<span class="g">应用 / 场景遍历</span><span class="g">顶点变换</span><span class="g">光照</span><span class="g">裁剪 · 透视除法 · 视口</span><span class="r">三角形设置</span><span class="r">光栅化 · 参数插值</span><span class="r">纹理采样 · 过滤</span><span class="r">Z 测试 · 混合 · 雾</span><span class="r">帧缓冲写入</span><span class="r">扫描输出</span>
+</div>
+<p>绿色是几何阶段，铜色是光栅阶段。贯穿全篇的规律只有一条：<strong>消费级硬件从管线尾端向前端逐段接管</strong>。下图纵轴是阶段，横轴是年份，铜色格子表示该阶段已经进入消费级 PC 硬件，深铜色是第一次出现的那一年。</p>
+
+<div class="legend"><span><i style="background:var(--cpu)"></i>CPU / 软件</span><span><i style="background:var(--copper-soft);box-shadow:inset 3px 0 0 var(--copper)"></i>消费级硬件</span><span><i style="background:var(--copper)"></i>首次硬件化</span><span><i style="background:var(--green-soft);box-shadow:inset 3px 0 0 var(--green)"></i>仅工作站 / 专业卡</span></div>
+<div class="grid-wrap"><div class="grid">
+<div class="hd">阶段 \ 年份</div><div class="hd">1981</div><div class="hd">1987</div><div class="hd">1991</div><div class="hd">1994</div><div class="hd">1996</div><div class="hd">1997</div><div class="hd">1998</div><div class="hd">1999</div>
+
+<div class="lab">扫描输出 · 帧缓冲</div>
+<div class="c on first"><span>MDA / CGA</span></div><div class="c on"><span>VGA</span></div><div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+
+<div class="lab">2D BitBLT · 画线 · 填充</div>
+<div class="c"></div><div class="c on first"><span>IBM 8514/A</span></div><div class="c on"><span>S3 86C911</span></div><div class="c on"><span>Mach64 / Trio64</span></div><div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+
+<div class="lab">视频缩放 · YUV→RGB</div>
+<div class="c"></div><div class="c"></div><div class="c"></div><div class="c on first"><span>Mach64 · Trio64V+ (95)</span></div><div class="c on"></div><div class="c on"><span>Rage Pro 运动补偿</span></div><div class="c on"><span>Rage 128 iDCT</span></div><div class="c on"></div>
+
+<div class="lab">光栅化 · Z · Gouraud · 混合</div>
+<div class="c"></div><div class="c"></div><div class="c pro"><span>SGI GTX (88)</span></div><div class="c on first"><span>GLINT 300SX</span></div><div class="c on"><span>ViRGE · Rage · Voodoo FBI</span></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+
+<div class="lab">透视校正纹理 · 双线性 · mipmap</div>
+<div class="c"></div><div class="c"></div><div class="c pro"><span>SGI VGX (90)</span></div><div class="c pro"><span>GLINT 500TX</span></div><div class="c on first"><span>Voodoo TMU · Vérité</span></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+
+<div class="lab">三角形设置</div>
+<div class="c"></div><div class="c"></div><div class="c pro"><span>SGI GTX 边处理器</span></div><div class="c"></div><div class="c pro"><span>GLINT Delta (独立芯片)</span></div><div class="c on first"><span>RIVA 128 · Rage Pro · V2200</span></div><div class="c on"><span>Voodoo2 · Permedia 2</span></div><div class="c on"></div>
+
+<div class="lab">单遍多纹理</div>
+<div class="c"></div><div class="c"></div><div class="c"></div><div class="c pro"><span>RealityEngine (92)</span></div><div class="c"></div><div class="c"></div><div class="c on first"><span>Voodoo2 · RIVA TNT</span></div><div class="c on"><span>Rage 128 · G400</span></div>
+
+<div class="lab">变换 · 光照 · 裁剪</div>
+<div class="c pro"><span>E&amp;S (69) · SGI GE (82)</span></div><div class="c pro"><span>IRIS GTX</span></div><div class="c pro"><span>VGX</span></div><div class="c pro"><span>RealityEngine</span></div><div class="c pro"><span>N64 RSP (主机)</span></div><div class="c pro"><span>GLINT Gamma</span></div><div class="c pro"></div><div class="c on first"><span>GeForce 256</span></div>
+
+<div class="lab">可编程处理器</div>
+<div class="c"></div><div class="c pro"><span>TMS34010 (86)</span></div><div class="c pro"><span>i860 板卡</span></div><div class="c"></div><div class="c on first"><span>Vérité RISC 微码</span></div><div class="c on"></div><div class="c on"><span>G200 WARP</span></div><div class="c on"></div>
+</div></div>
+
+<div class="callout"><p>工作站与矢量显示器时代是个例外：没有帧缓冲、只有画线器，所以 1969 年的 E&amp;S LDS-1 先把几何变换做进硬件。消费级 PC 走的是反方向，最后一段被接管的恰恰是几何。</p></div>
+</section>
+
+<section id="vector">
+<h2><span class="num">01 · 序章</span>矢量时代的几何硬件</h2>
+<p class="span">1968–1981</p>
+<ul>
+<li><strong>Evans &amp; Sutherland LDS-1（1969）</strong>。首台矢量显示处理器，1969 年 8 月交付 BBN。硬件含 4×4 齐次矩阵乘法器与裁剪除法器（Sproull 与 Sutherland 1968 年论文），完成变换、裁剪、透视除法和视口缩放，输出给矢量画线器。T&amp;L 是最早被硬件化的阶段，只是用户是军方与大学。</li>
+<li><strong>E&amp;S Picture System（1974）</strong>。以 PDP-11 为主机，宣传单列出"复合变换、裁剪、透视、视口映射、缩放、拾取测试、刷新缓冲"。刷新缓冲让画线不再闪烁。</li>
+<li><strong>Ikonas RDS-2000 / 3000（1979–1980）</strong>。Nick England 与 Mary Whitton 创立。32 位位片 ALU、64 位微指令字、可选矩阵乘法板与 Z 缓冲板。用户拿它做光栅化、着色、图像处理甚至光线追踪，被后人称作第一台 GPGPU。1982 年被 Adage 收购。</li>
+<li><strong>UNC Pixel-Planes（1981 论文）</strong>。Fuchs 与 Poulton 提出"逻辑增强存储器"：每个像素配一个 1 位 ALU，一棵线性表达式求值树对所有像素同时算 Ax+By+C，光栅化、Z 比较、Gouraud 着色对全屏 SIMD 并行。Pixel-Planes 4（1986）用 2048 颗定制芯片做到 3.9 万多边形每秒；Pixel-Planes 5（1989）目标 100 万 Phong 三角形每秒；PixelFlow（1992）提出图像合成并行与延迟着色，1996 年技术卖给 HP。</li>
+</ul>
+</section>
+
+<section id="sgi">
+<h2><span class="num">02 · 工作站时代</span>SGI 几何引擎与 IRIS GL</h2>
+<p class="span">1982–1996</p>
+<h3>几何引擎（1982）</h3>
+<p>Jim Clark 与 Marc Hannah 在斯坦福设计，1981 年流片，1982 年 SIGGRAPH 发表。一颗芯片是四分量浮点向量处理器，只做三件事：4×4 矩阵变换、裁剪、缩放到设备坐标。12 颗串成流水线，约 5 MFLOPS，每 15 µs 吐出一个已变换裁剪的顶点。同年 Clark 创立 Silicon Graphics。</p>
+<h3>SGI 各代的管线分工</h3>
+<div class="tbl"><table>
+<tr><th>系统</th><th>年份</th><th>几何子系统</th><th>光栅子系统</th><th>纹理</th><th>性能</th></tr>
+<tr><td>IRIS 1000</td><td class="y">1983</td><td>GE 流水线，约 6 MFLOPS</td><td>普通帧缓冲，无 Z</td><td>无</td><td>终端，挂 VAX</td></tr>
+<tr><td>IRIS 2000 / 3000</td><td class="y">1985–86</td><td>10–12 颗 GE</td><td>同上</td><td>无</td><td>首批独立工作站</td></tr>
+<tr><td>IRIS 4D/GT、GTX</td><td class="y">1987–88</td><td>5 颗微码 GE，各 20 MFLOPS，分工为变换、光照、裁剪测试、透视除法与裁剪、视口</td><td><b>边处理器（三角形设置）</b> + 5 个跨距处理器 + 20 颗图像引擎（Z、填充、混合）</td><td>无</td><td>10 万光照 Gouraud Z 多边形/秒</td></tr>
+<tr><td>PowerSeries VGX / VGXT</td><td class="y">1990</td><td>GE6 板</td><td>RM2/RM3，各 20 颗图像引擎</td><td><b>SGI 首次硬件纹理</b>；VGXT 加逐像素透视校正，约 50 M 像素/秒双线性 mipmap</td><td>75 万光照三角形/秒</td></tr>
+<tr><td>RealityEngine</td><td class="y">1992</td><td>6/8/12 颗 Intel i860XP @50 MHz（MIMD），做变换、光照、裁剪与<b>三角形设置</b></td><td>每光栅板 5 个片段生成器（各带整份纹理存储）+ 80 颗图像引擎</td><td>多重采样抗锯齿 + 纹理</td><td>约 100 万抗锯齿纹理三角形/秒，&gt;240 M 像素/秒</td></tr>
+<tr><td>InfiniteReality</td><td class="y">1996</td><td>4 颗定制 GE ASIC @90 MHz，各 540 MFLOPS</td><td>每板 80 颗图像引擎</td><td>16 MB 到 1 GB 纹理内存</td><td>&gt;700 万三角形/秒，710 M 像素/秒</td></tr>
+</table></div>
+<p>GTX 的四段划分（几何、扫描转换、光栅、显示）就是后来 PC 3D 芯片的教科书结构，只是 PC 用了十年才把前两段装进单芯片。</p>
+
+<h3>并行的可编程路线</h3>
+<ul>
+<li><strong>TI TMS34010（1986）</strong>：第一颗可编程图形处理器。它是一颗完整的 32 位 CPU，位寻址，带 PIXBLT、透明、平面掩码、窗口检查等图形指令，也是第一颗使用 VRAM 的处理器。TMS34020（1988）加了 TMS34082 浮点协处理器接口用于 3D 几何。<strong>TIGA（1989）</strong>是 TI 定义的主机到图形处理器软件接口，分辨率无关，但成本过高，输给 SVGA 加本地总线。板卡有 Number Nine Pepper、Hercules Graphics Station、SPEA Graphiti、Matrox PG-1281；街机 Hard Drivin'、Mortal Kombat、NBA Jam 也用它。</li>
+<li><strong>Intel i860（1989）</strong>：RISC/VLIW，FPU 旁挂一个 3D 图形单元，指令级支持 Gouraud 强度插值、Z 插值与 Z 缓冲比较。SGI RealityEngine 拿它当几何引擎；SPEA Fire（ISA，33 MHz i860，VGA 直通）是 PC 上的纯 3D 子系统；NeXTdimension 也用它。</li>
+</ul>
+
+<h3>IRIS GL、PHIGS 与 OpenGL 的诞生</h3>
+<p>IRIS GL 1982 年开始开发，1983 年随 IRIS 终端出货，立即模式，与硬件绑定。PHIGS（ANSI 1988、ISO 1989）与 PEX（PHIGS Extension to X，5.0 于 1990 年 9 月）是保留模式的竞争标准，得到 Sun、DEC、HP、IBM 支持。SGI 为了反击，1989 年开始清理 IRIS GL，剥离窗口与输入 API、绕开专利，<strong>1992 年 6 月 30 日发布 OpenGL 1.0</strong>，同年成立 ARB，微软是创始投票成员。OpenGL 的立即模式与对硬件友好的设计击败了 PHIGS。</p>
+</section>
+
+<section id="pc2d">
+<h2><span class="num">03 · PC 2D 加速</span>从哑帧缓冲到 Windows 加速器</h2>
+<p class="span">1981–1995</p>
+<h3>哑帧缓冲时代</h3>
+<div class="tbl"><table>
+<tr><th>适配器</th><th>年份</th><th>模式</th><th>硬件做了什么</th></tr>
+<tr><td>IBM MDA</td><td class="y">1981</td><td>80×25 文本</td><td>6845 CRTC 扫描输出，字符 ROM</td></tr>
+<tr><td>IBM CGA</td><td class="y">1981</td><td>320×200×4 / 640×200×2</td><td>16 KB 帧缓冲，无绘图硬件</td></tr>
+<tr><td>Hercules HGC</td><td class="y">1982</td><td>720×348 单色</td><td>64 KB 帧缓冲</td></tr>
+<tr><td>IBM EGA</td><td class="y">1984</td><td>640×350×16 平面</td><td>锁存器、位掩码、平面写使能，CPU 辅助的按位运算</td></tr>
+<tr><td>IBM VGA</td><td class="y">1987</td><td>640×480×16 / 320×200×256</td><td>锁存器加桶形移位器，明确"无 Blitter"</td></tr>
+</table></div>
+<p>EGA/VGA 的锁存器与 ALU 常被说成"加速"，但它们不是命令驱动的绘图引擎。所有画线、填充、文字、位块搬运都是 CPU 循环。</p>
+
+<h3>IBM 8514/A（1987）与 XGA（1990）：固定功能 2D 引擎</h3>
+<ul>
+<li><strong>8514/A</strong>，1987 年 4 月 2 日随 PS/2 发布，仅 MCA 总线。硬件：XY 寻址 BitBLT、Bresenham 画线、矩形与区域填充、单色源的颜色扩展（文字）、剪裁矩形、光栅运算。帧缓冲不映射到内存，一切通过约 30 个 16 位 I/O 寄存器下命令，是 PC 上第一块<strong>命令式绘图协处理器</strong>。1024×768×256 只有 43.5 Hz 隔行，为的是配便宜的 8514 显示器。IBM 提供 Adapter Interface TSR 做硬件抽象，代价约一半性能。</li>
+<li><strong>XGA</strong>，1990 年 10 月。总线主控、线性帧缓冲孔径、PxBlt、Bresenham 与短笔画矢量、区域填充、剪裁、64×64 硬件精灵光标，同时兼容 VGA。XGA-2（1992）1024×768 逐行 75 Hz。</li>
+</ul>
+
+<h3>Windows 加速器浪潮（1991–1995）</h3>
+<p>驱动力是 Windows 3.0（1990 年 5 月，约 1000 万份）和 3.1（1992 年 4 月，三个月 300 万份）。Win16 GDI 通过显示驱动导出的入口点工作：BitBlt、ExtTextOut、Output（线、多边形、扫描线）、SetCursor、StretchBlt 等。1992 年《Microprocessor Report》统计，Windows 中 <strong>BitBlt 与 ExtTextOut 占绝大多数绘图调用</strong>。所谓 Windows 加速器，就是把这两个操作连同画线、填充、图案、光标做进硬件。</p>
+<div class="tbl"><table>
+<tr><th>芯片</th><th>日期</th><th>总线</th><th>硬件化的操作</th><th>备注</th></tr>
+<tr><td>ATI Mach8</td><td class="y">1991 初</td><td>ISA / MCA</td><td>8514/A 寄存器兼容克隆</td><td>需单独 VGA 核心</td></tr>
+<tr><td><b>S3 86C911</b></td><td class="y">1991-06</td><td>ISA</td><td>BitBLT、区域填充、ROP、画线、颜色扩展、剪裁、光标</td><td>第一颗单芯片量产 Windows 加速器，名字来自保时捷 911；1 MB VRAM，OEM 价 75 美元</td></tr>
+<tr><td>S3 801 / 805 / 928</td><td class="y">1992–93</td><td>ISA / VLB / PCI</td><td>同上，32 位内存通路、真彩、线性寻址</td><td></td></tr>
+<tr><td>ATI Mach32</td><td class="y">1992</td><td>ISA / EISA / VLB / PCI</td><td>VGA 与 8514 类加速器合一</td><td>64 位内存接口</td></tr>
+<tr><td>Tseng ET4000/W32</td><td class="y">1992-09</td><td>ISA / VLB</td><td>BitBLT 引擎、硬件光标、Imaging Port 视频窗口</td><td>32 位</td></tr>
+<tr><td>Weitek P9000</td><td class="y">1992-07</td><td>VLB</td><td>BitBLT、画线、四边形填充</td><td>Diamond Viper；无 VGA 核心</td></tr>
+<tr><td>Cirrus GD5426 / 5428</td><td class="y">1993</td><td>ISA / VLB</td><td>32 位 BitBLT、颜色扩展</td><td>低价走量</td></tr>
+<tr><td>Matrox MGA Impression</td><td class="y">1993</td><td>VLB / PCI</td><td>64 位 2D、Gouraud、Z 比较</td><td>面向 CAD</td></tr>
+<tr><td>S3 Vision864 / 964</td><td class="y">1994</td><td>VLB / PCI</td><td>64 位帧缓冲通路</td><td></td></tr>
+<tr><td>ATI Mach64</td><td class="y">1994</td><td>VLB / PCI</td><td>64 位 GUI 加速，<b>YUV→RGB 与硬件缩放</b></td><td>ATI 宣称首创</td></tr>
+<tr><td>Number Nine Imagine 128</td><td class="y">1994</td><td>PCI</td><td>128 位核心与总线</td><td></td></tr>
+<tr><td>S3 Trio64</td><td class="y">1994 末</td><td>PCI</td><td>图形核心、RAMDAC、时钟合成器三合一</td><td>Trio 之名由此</td></tr>
+<tr><td>Matrox Millennium</td><td class="y">1995</td><td>PCI</td><td>64 位、WRAM、220 MHz RAMDAC</td><td>当时最快 2D</td></tr>
+<tr><td>S3 Trio64V+</td><td class="y">1995 中</td><td>PCI</td><td>Streams Processor：YUV→RGB、水平滤波缩放、三路流混合、覆盖层</td><td></td></tr>
+<tr><td>ATI Mach64 VT</td><td class="y">1995-10</td><td>PCI</td><td>正交视频覆盖层与缩放器、MPEG-1 辅助</td><td></td></tr>
+</table></div>
+
+<h3>总线：带宽决定了能把什么搬到卡上</h3>
+<div class="tbl"><table>
+<tr><th>总线</th><th>年份</th><th>峰值带宽</th></tr>
+<tr><td>ISA 16 位</td><td class="y">1984</td><td>约 8 MB/s，纸面 16</td></tr>
+<tr><td>VESA Local Bus</td><td class="y">1992</td><td>133 MB/s @33 MHz</td></tr>
+<tr><td>PCI 2.0</td><td class="y">1993，1994 随奔腾普及</td><td>133 MB/s，总线主控</td></tr>
+<tr><td>AGP 1.0</td><td class="y">1996-07 规范，1997-08 440LX</td><td>1× 266 MB/s，2× 533 MB/s，GART，边带寻址</td></tr>
+</table></div>
+
+<h3>视频回放加速</h3>
+<ul>
+<li>1992–93：Tseng W32 Imaging Port 硬件视频窗口。</li>
+<li>1994：ATI Mach64、S3 Vision868/968 硬件缩放与 YUV→RGB 色彩空间转换，谁是第一有争议。</li>
+<li>1995：S3 Trio64V+、ATI Mach64 VT、Cirrus GD5440，覆盖层加插值缩放成为主流。</li>
+<li>1996：ATI 3D Rage MPEG-1 辅助，Rage II MPEG-2/DVD 辅助。</li>
+<li>1997：ATI Rage Pro 加入 MPEG-2 <strong>运动补偿</strong>。</li>
+<li>1998：S3 Savage3D 运动补偿加字幕 alpha 混合；ATI Rage 128 加入 <strong>iDCT</strong>。</li>
+</ul>
+
+<h3>软件侧：DOS、GDI 与 DirectDraw</h3>
+<ul>
+<li><strong>VESA VBE</strong> 1.0（1989）、1.2（1991 年 10 月）统一 SVGA 模式设置与分页；2.0（1994 年 11 月）加线性帧缓冲、保护模式接口、翻页；VBE/AF（1996）想暴露 BitBLT 与光标加速，几乎无人采用。</li>
+<li><strong>DCI</strong>（微软与 Intel，1994 年 6 月）：Win 3.1 下直接访问帧缓冲与视频表面。</li>
+<li><strong>WinG</strong>（1994 年 9 月 21 日）：Chris Hecker 为 Win 3.1 游戏做的快速 DIB 到屏幕 blit，用 Doom 演示。</li>
+<li><strong>Windows 95</strong>：32 位 DIB Engine 实现几乎全部 GDI，厂商只写 minidriver，挑 BitBlt、ExtTextOut、光标挂到硬件。</li>
+<li><strong>DirectX 1.0 / Windows Games SDK</strong>（1995 年 9 月 30 日）：DirectDraw（直接 VRAM 访问、硬件 blit、翻页、覆盖层、色键，HAL/HEL 结构）、DirectSound、DirectPlay。DirectDraw 是 DCI 与 WinG 的 Win32 继承者。</li>
+</ul>
+</section>
+
+<section id="gen1">
+<h2><span class="num">04 · PC 3D 第一代</span>只有光栅化，设置留给 CPU</h2>
+<p class="span">1994–1996</p>
+<h3>背景：软件渲染与街机、主机的示范</h3>
+<ul>
+<li>id Software 的 Doom（1993 年 12 月）与 Quake（1996 年 6 月，Carmack 与 Abrash 的软件光栅器）证明奔腾能跑实时 3D，也让玩家看到硬件加速的空间。</li>
+<li>街机：Sega Model 1（1992，Virtua Racing，平面着色）；Model 2（1993，纹理映射技术来自 GE Aerospace，后归 Lockheed Martin）；Namco System 22（1993，Ridge Racer，Evans &amp; Sutherland TR3 纹理芯片组）。</li>
+<li>主机：3DO（1993 年 10 月）；Sega Saturn（1994 年 11 月）；<strong>Sony PlayStation（1994 年 12 月 3 日）</strong>。GTE 作为 R3000 的协处理器 2 做矩阵、透视变换、光照、裁剪，而 Sony 命名为 GPU 的芯片只是光栅器：仿射纹理、无 Z 缓冲、排序表。<strong>GPU 一词在 1994 年已由 Sony 使用</strong>。</li>
+<li>专业：3Dlabs <strong>GLINT 300SX</strong>（1994 年 11 月发布）是第一颗单芯片 OpenGL 光栅器，做光栅化、Gouraud、Z、alpha 混合、抖动、子像素抗锯齿，顶点级接口，<strong>变换、光照、裁剪、三角形设置全在主机 CPU</strong>。Creative 3D Blaster VLB（1995）用它的精简版，配 CGL API。</li>
+</ul>
+
+<h3>第一代消费级 3D 芯片</h3>
+<div class="tbl"><table>
+<tr><th>芯片</th><th>日期</th><th>三角形设置</th><th>光栅 / Z / 混合</th><th>纹理</th><th>过滤</th><th>色深</th><th>备注</th></tr>
+<tr><td>NVIDIA NV1 / Diamond Edge 3D</td><td class="y">1995-11</td><td>二次曲面片设置在片上</td><td>无 Z 缓冲</td><td>前向映射的二次曲面纹理</td><td>无</td><td>—</td><td>与 D3D 三角形模型不兼容而失败，Diamond 计提 500 万美元库存</td></tr>
+<tr><td>S3 ViRGE 325</td><td class="y">1995 末</td><td class="cpu">CPU 算边斜率</td><td>有，16 位 Z</td><td>透视校正</td><td>双线性，慢三线性，mipmap</td><td>16 / 24</td><td>无纹理缓存，全开特效比软件渲染还慢，人称 3D 减速卡</td></tr>
+<tr><td>ATI 3D Rage / Rage II</td><td class="y">1996-04 / 09</td><td class="cpu">CPU</td><td>Rage II 加 Z</td><td>透视有误差</td><td>廉价双线性</td><td>16</td><td>Mach64 2D 加视频</td></tr>
+<tr><td>Matrox Mystique</td><td class="y">1996</td><td class="cpu">CPU</td><td>有</td><td>透视校正</td><td>无双线性，无雾，点画式透明</td><td>16</td><td>2D 很快</td></tr>
+<tr><td>Rendition Vérité V1000</td><td class="y">1996-09/10</td><td class="hw">片上 RISC 以微码完成</td><td>有，Z 慢</td><td>透视校正，逐多边形 mipmap</td><td>双线性，纹素缓存</td><td>16 抖动</td><td>首个硬件加速 Quake（VQuake，1996-12-02）</td></tr>
+<tr><td><b>3dfx Voodoo Graphics</b></td><td class="y">1996-10-07</td><td class="cpu">CPU / Glide 算梯度，芯片走边与插值</td><td>FBI：扫描转换、Z、alpha、表雾、抖动</td><td>TMU：透视校正查表，256×256</td><td>单遍双线性加 mipmap，两遍三线性</td><td>16</td><td>纯 3D 子卡，VGA 直通线，50 MHz，约 30 M 像素/秒实测</td></tr>
+<tr><td>PowerVR PCX1 / PCX2</td><td class="y">1996 H2 / 1997</td><td class="cpu">驱动与 CPU 承担</td><td>分块延迟渲染，无 Z 缓冲，无限平面</td><td>透视校正，逐像素 mipmap</td><td>PCX1 无双线性，PCX2 加</td><td>24 内部</td><td>经 PCI 合成到主卡帧缓冲</td></tr>
+</table></div>
+<div class="callout"><p><strong>1996 年的消费级芯片没有三角形设置单元是常态</strong>。ViRGE、3D Rage、Permedia 1、Voodoo Graphics 都没有。CPU 负责变换、光照、裁剪、投影、排序顶点、算边斜率和每参数梯度，再把一堆寄存器值喂给芯片。这就是早期 3D 卡强烈依赖 CPU 浮点性能的原因，也是 Glide 的 grDrawTriangle 要求传入已投影顶点的原因。</p></div>
+<p>Voodoo 的 FBI 加 TMU 双芯片划分把光栅与纹理两段管线在物理上拆开：帧缓冲接口负责光栅与片段操作，纹理映射单元负责纹素取样与过滤，各有独立 64 位内存总线。后来 Voodoo2 加第二颗 TMU，就得到了单遍多纹理。</p>
+</section>
+
+<section id="gen2">
+<h2><span class="num">05 · 第二代</span>三角形设置入芯片，2D/3D 合一，AGP</h2>
+<p class="span">1996–1997</p>
+<ul>
+<li><strong>3Dlabs GLINT Delta（1996 年中）</strong>：一颗<strong>独立的三角形与线段设置处理器</strong>，1M 顶点/秒，浮点转定点、算斜率与增量，喂给 300SX/500TX/MX/Permedia，宣称减少 70% PCI 流量。这是 PC 上三角形设置阶段硬件化的起点。Permedia 2（1997 秋）把 Delta 集成进单芯片。</li>
+<li><strong>NVIDIA RIVA 128（1997 年 8 月 25 日）</strong>：2D、3D、视频一体，128 位内存总线，100 MHz，AGP 1×，<strong>浮点设置引擎</strong>（1.5M 三角形/秒），100 M 像素/秒。无三线性，画质有瑕疵，但速度与 Direct3D 兼容性让 NVIDIA 起死回生。</li>
+<li><strong>ATI Rage Pro（1997）</strong>：ATI 第一颗带硬件三角形设置的芯片（1.2M 三角形/秒），AGP 2× 从系统内存执行纹理，MPEG-2 运动补偿。</li>
+<li><strong>Rendition Vérité V2100 / V2200（1997 秋）</strong>：增强 RISC 加新增的专用三角形引擎（tri 指令），光栅与设置异步。</li>
+<li><strong>3dfx Voodoo Rush（1997 年 4 月）</strong>：Voodoo 与 Alliance AT3D 2D 芯片共板，共享带宽反而更慢。</li>
+<li><strong>Intel i740（1998 年 2 月）</strong>：与 Real3D（Lockheed Martin）合作，纹理全部放系统内存经 AGP 取用，本地显存只放帧与 Z 缓冲，是 AGP 设计理念的极端实践，性能受限于 AGP 带宽。</li>
+<li><strong>3Dlabs GLINT Gamma（1997 年 11 月发布，1998 年 2 月送样）</strong>：业界第一颗单芯片现成的 OpenGL 几何与光照处理器，做变换、光照、裁剪。Oxygen GMX 2000 用 1 颗 Gamma 加 2 颗 GLINT MX，一块 AGP 卡上完整的 OpenGL 几何加光栅管线。<strong>PC 上的硬件 T&amp;L 比 GeForce 早两年出现，只是价格在专业市场</strong>。3Dlabs 当时把 Gamma 叫 geometry processor unit，也是 GPU。</li>
+<li><strong>Nintendo 64（1996 年 6 月）</strong>：SGI 设计的 RCP 由 RSP（MIPS 标量加 128 位向量单元，微码可编程，做变换、光照、裁剪、三角形设置）与 RDP（固定功能光栅器：Z、透视校正纹理、三线性 mipmap、抗锯齿、4 KB TMEM）组成。家用机上第一个硬件 T&amp;L。</li>
+<li><strong>Microsoft Talisman（1996 年 8 月 SIGGRAPH 公布）</strong>：分块加图像层合成架构，与 Cirrus、三星、富士通合作，参考板 Escalante 从未量产，18 个月内被廉价内存、AGP 与 Voodoo/RIVA 的势头淘汰。</li>
+</ul>
+</section>
+
+<section id="gen3">
+<h2><span class="num">06 · 第三代</span>多纹理、32 位色、填充率竞赛</h2>
+<p class="span">1998–1999</p>
+<div class="tbl"><table>
+<tr><th>芯片</th><th>日期</th><th>像素管线 × TMU</th><th>设置</th><th>色深 / Z</th><th>总线</th><th>亮点</th></tr>
+<tr><td>3dfx Voodoo2</td><td class="y">1998-02</td><td>1 × 2（FBI + 2 TMU）</td><td class="hw">全浮点硬件设置，3M 三角形/秒</td><td>16 / 16</td><td>PCI</td><td>单遍双纹理，SLI 两卡 1024×768</td></tr>
+<tr><td>3dfx Banshee</td><td class="y">1998-06</td><td>1 × 1</td><td>有</td><td>16</td><td>AGP / PCI</td><td>3dfx 首颗 2D/3D 单芯片</td></tr>
+<tr><td>S3 Savage3D</td><td class="y">1998-06</td><td>1 × 1</td><td>有</td><td>32 / 24</td><td>AGP 2×</td><td><b>S3TC 纹理压缩</b>（后成 DXT1），单周期三线性，良率与驱动失败</td></tr>
+<tr><td>NVIDIA RIVA TNT</td><td class="y">1998-08</td><td><b>2 × 1</b></td><td>有</td><td><b>32 / 24 + 8 模板</b></td><td>AGP 2×</td><td>TwiN Texel 单遍双纹理，1024² 纹理</td></tr>
+<tr><td>Matrox G200</td><td class="y">1998</td><td>1 × 1</td><td>WARP 微码 RISC</td><td>32 / 32 + 模板</td><td>AGP 2×</td><td>128 位 DualBus</td></tr>
+<tr><td>ATI Rage 128</td><td class="y">1999-01</td><td>2 × 1</td><td>有，约 4M</td><td>32 强</td><td>AGP 2×</td><td>ATI 首个双管线，32 位色损耗小</td></tr>
+<tr><td>S3 Savage4</td><td class="y">1999-02</td><td>1 × 1</td><td>有</td><td>32</td><td>AGP 4×</td><td>单遍双纹理，低价</td></tr>
+<tr><td>NVIDIA TNT2</td><td class="y">1999 初</td><td>2 × 1</td><td>有</td><td>32</td><td>AGP 4×</td><td>125–150 MHz，Voodoo3 两倍单纹理填充率</td></tr>
+<tr><td>3dfx Voodoo3</td><td class="y">1999-03</td><td>1 × 2</td><td>有</td><td>16，内部 32 抖动后滤波</td><td>AGP 2×</td><td>256×256 纹理上限，落后</td></tr>
+<tr><td>Matrox G400</td><td class="y">1999-09</td><td>2 × 1</td><td>有</td><td>32</td><td>AGP 4×</td><td>环境映射凹凸贴图、双头输出，无 T&amp;L</td></tr>
+<tr><td>PowerVR Neon 250</td><td class="y">1999 夏</td><td>分块延迟</td><td>全浮点几何与纹理设置</td><td>32</td><td>AGP 2×</td><td>拖延两年，CPU 占用终于与同行持平</td></tr>
+</table></div>
+<p>这一代的共同点：三角形设置已是标配，竞争转向像素管线数、单遍纹理数、32 位色和内存带宽。<strong>管线中 CPU 手里只剩变换、光照与裁剪</strong>。</p>
+</section>
+
+<section id="gpu">
+<h2><span class="num">07 · 终点</span>GeForce 256 与 GPU 的定义</h2>
+<p class="span">1999</p>
+<ul>
+<li><strong>NVIDIA GeForce 256（NV10）</strong>：1999 年 8 月 31 日发布，SDR 版 10 月 11 日、DDR 版 12 月 13 日上市。120 MHz，<strong>4 条像素管线</strong>（每条 64 位，故名 256），480 M 像素/秒，<strong>硬件变换、光照、裁剪与设置</strong>，1500 万三角形/秒，立方环境贴图、Dot3 凹凸贴图，32 位色、24 位 Z 加 8 位模板，AGP 4×，首个完整 DirectX 7 硬件。晶体管数各方说法不一，2300 万与 Jon Peddie 的 1700 万并存。</li>
+<li>NVIDIA 的市场定义原文："a single-chip processor with integrated transform, lighting, triangle setup/clipping, and rendering engines that is capable of processing a minimum of 10 million polygons per second." 即单芯片集成变换、光照、三角形设置与裁剪、渲染引擎，且每秒至少处理 1000 万多边形。</li>
+<li>这个定义的实质：<strong>CPU 手里最后一段管线也被搬进消费级单芯片</strong>，管线从此完整地在卡上。把 SGI 1988 年 GTX 的板级四段结构缩进一颗芯片，用了 11 年。</li>
+<li>同期：S3 Savage2000（1999 年 11 月）宣传 S3TL 硬件 T&amp;L，出货即不可用；3dfx VSA-100（2000）放弃 T&amp;L，公司 2000 年末倒闭；ATI Radeon（2000 年，Charisma Engine）跟进。DirectX 8（2000 年 11 月）引入可编程顶点与像素着色器，是下一个时代的分界。</li>
+</ul>
+</section>
+
+<section id="api">
+<h2><span class="num">08 · 图形 API</span>抽象层级如何追随硬件</h2>
+<p class="span">1984–1999</p>
+<h3>2D 与窗口系统 API</h3>
+<div class="tbl"><table>
+<tr><th>API</th><th>日期</th><th>性质</th></tr>
+<tr><td>Apple QuickDraw</td><td class="y">1984-01</td><td>Bill Atkinson 的 68000 汇编 2D 库，随 Macintosh 发布</td></tr>
+<tr><td>GKS</td><td class="y">ISO 1985</td><td>2D 图形标准</td></tr>
+<tr><td>Windows GDI</td><td class="y">1985-11</td><td>Graphics Device Independence，通过设备驱动统一打印机与显示器</td></tr>
+<tr><td>X11 / Xlib</td><td class="y">1987-09</td><td>网络透明窗口系统，服务器端 2D 绘图</td></tr>
+<tr><td>PHIGS / PEX</td><td class="y">1988 / 1990</td><td>保留模式 3D，X 扩展</td></tr>
+<tr><td>VESA VBE</td><td class="y">1989–1998</td><td>DOS 下 SVGA 模式设置，2.0 线性帧缓冲</td></tr>
+<tr><td>TIGA</td><td class="y">1989</td><td>TI 34010/34020 的主机接口</td></tr>
+<tr><td>DCI</td><td class="y">1994</td><td>Win 3.1 直接帧缓冲访问</td></tr>
+<tr><td>WinG</td><td class="y">1994-09</td><td>Win 3.1 游戏快速 DIB blit</td></tr>
+<tr><td>DirectDraw</td><td class="y">1995-09</td><td>Win95 直接 VRAM、硬件 blit、翻页、覆盖层</td></tr>
+</table></div>
+
+<h3>OpenGL 系</h3>
+<ul>
+<li>1982–83：IRIS GL。</li>
+<li>1992 年 6 月 30 日：<strong>OpenGL 1.0</strong>，ARB 成立。</li>
+<li>1994：Windows NT 3.5 内置 OpenGL，SGI 参考实现的慢速移植。</li>
+<li>1996 年 1 月：ARB 批准 <strong>OpenGL 1.1</strong>（纹理对象、顶点数组、多边形偏移）。规范文档修订版标注 1997 年 3 月 4 日，所以各资料日期不一。1996 年 8 月 5 日微软发布 Windows 95 与 NT 4.0 的 OpenGL 1.1。</li>
+<li>驱动模型：<strong>ICD</strong>（Installable Client Driver，厂商替换整条 GL 管线）与 <strong>MCD</strong>（Mini Client Driver，仅光栅化，NT 4.0 专有，Win95 版被撤回）。</li>
+<li>1996 年 12 月 23 日：John Carmack 的 .plan 文件称 "Direct3D IM is a horribly broken API"，宣布放弃 D3D 移植。1997 年 1 月 22 日 <strong>GLQuake</strong> 发布，3dfx 提供只实现 GLQuake 所需子集的 <strong>MiniGL</strong> 驱动。此事把 OpenGL 推向消费级游戏。</li>
+<li>1998 年 3 月：<strong>OpenGL 1.2</strong>（3D 纹理、BGRA、打包像素、纹理 LOD 控制、成像子集）。</li>
+<li>1997 年 12 月 17 日：SGI 与微软宣布 <strong>Fahrenheit</strong>，欲统一 OpenGL 与 Direct3D；1999 年放弃，只有场景图 XSG 短暂出货。</li>
+</ul>
+
+<h3>Direct3D 系</h3>
+<div class="tbl"><table>
+<tr><th>版本</th><th>日期</th><th>与硬件对应的关键变化</th></tr>
+<tr><td>RenderMorphics Reality Lab</td><td class="y">1992–94</td><td>软件 3D 库，已有立即与保留模式；微软 1995 年 2 月收购</td></tr>
+<tr><td>DirectX 2 / Direct3D 1.0</td><td class="y">1996-06</td><td>立即模式用 <b>execute buffer</b>（顶点加操作码缓冲，极难用），保留模式叠在上面；TLVERTEX 即 CPU 已变换光照的顶点</td></tr>
+<tr><td>DirectX 3</td><td class="y">1996-09</td><td>修补</td></tr>
+<tr><td>DirectX 5（跳过 4）</td><td class="y">1997-08-04</td><td><b>DrawPrimitive</b> 取代 execute buffer；Redmond 团队接管立即模式</td></tr>
+<tr><td>DirectX 6</td><td class="y">1998-08-07</td><td><b>单遍多纹理与纹理阶段状态</b>、凹凸贴图、顶点缓冲、模板、W 缓冲、<b>DXTC</b>（授权自 S3TC）、针对 3DNow!/SSE 重写的几何管线</td></tr>
+<tr><td>DirectX 7</td><td class="y">1999-09-22</td><td><b>硬件 T&amp;L</b>、立方环境贴图、顶点混合，与 GeForce 256 同步</td></tr>
+<tr><td>DirectX 8</td><td class="y">2000-11</td><td>可编程着色器 1.0；DirectDraw 并入 DirectX Graphics。边界之外</td></tr>
+</table></div>
+
+<h3>厂商私有 API 与中间件</h3>
+<div class="tbl"><table>
+<tr><th>API</th><th>厂商 / 硬件</th><th>年份</th></tr>
+<tr><td>NVLIB</td><td>NVIDIA NV1</td><td class="y">1995</td></tr>
+<tr><td>CGL（Creative Graphics Library）</td><td>Creative 3D Blaster（GLINT）</td><td class="y">1995</td></tr>
+<tr><td>S3D Toolkit</td><td>S3 ViRGE</td><td class="y">1995</td></tr>
+<tr><td>3D CIF</td><td>ATI Rage</td><td class="y">1996</td></tr>
+<tr><td><b>Glide</b></td><td>3dfx Voodoo</td><td class="y">1996</td></tr>
+<tr><td>Speedy3D（DOS）/ RRedline（Win）</td><td>Rendition Vérité</td><td class="y">1996</td></tr>
+<tr><td>PowerSGL</td><td>PowerVR PCX</td><td class="y">1996</td></tr>
+<tr><td>MSI（Matrox Simple Interface）</td><td>Matrox Mystique</td><td class="y">1996</td></tr>
+<tr><td>中间件</td><td>RenderWare（Criterion）、BRender（Argonaut）、Intel 3DR、QuickDraw 3D 与 RAVE（Apple）、HEIDI（Autodesk）</td><td class="y">1993–96</td></tr>
+</table></div>
+<p>Glide 是其中的赢家：Brian Hook 设计，类 OpenGL 的光栅化子集，贴着 Voodoo 硬件，早期大量游戏只支持 Glide。DirectX 5/6 成熟、RIVA TNT 出现后，私有 API 在 1998 到 1999 年集体消亡。</p>
+
+<h3>五个阶段</h3>
+<ol>
+<li><strong>2D 时代</strong>：GDI、QuickDraw、X 提供设备无关绘图原语，驱动决定哪些落到硬件。API 已经高于硬件。</li>
+<li><strong>3D 第一代</strong>：硬件只会光栅化，API 就只暴露光栅化。Glide 与 D3D 的 TLVERTEX 都要求应用自己完成变换与光照，D3D execute buffer 甚至让应用直接组装命令流。OpenGL 反而超前了硬件，驱动要在 CPU 上补做几何，于是有 MCD 与 MiniGL 这类削减版。</li>
+<li><strong>1998</strong>：DirectX 6 的纹理阶段模型对应 Voodoo2 与 TNT 的多 TMU；DXTC 直接来自 S3。</li>
+<li><strong>1999</strong>：DirectX 7 把 T&amp;L 放进 API，GeForce 256 把它放进芯片，两者同月出现。OpenGL 从 1992 年起就有完整几何管线，此时第一次在消费级硬件上完整落地。</li>
+<li><strong>2000 以后</strong>：着色器让 API 从"开关固定功能"变成"上传程序"，那是 GPU 时代的故事。</li>
+</ol>
+</section>
+
+<footer id="refs">
+<h3 style="margin-top:0">主要参考来源</h3>
+<ul>
+<li>Clark, "The Geometry Engine", SIGGRAPH 1982</li>
+<li>Akeley &amp; Jermoluk, "High-Performance Polygon Rendering", SIGGRAPH 1988</li>
+<li>Akeley, "RealityEngine Graphics", SIGGRAPH 1993</li>
+<li>Montrym et al., "InfiniteReality", SIGGRAPH 1997</li>
+<li>Fuchs &amp; Poulton, "Pixel-Planes", 1981</li>
+<li>Sutherland, "A Head-Mounted Three Dimensional Display", FJCC 1968；E&amp;S Picture System 宣传册 1974</li>
+<li>Microprocessor Report, "New Graphics Chips Speed Up Windows", 1992-09-16</li>
+<li>OS/2 Museum：8514/A、XGA、Windows 9x minidriver</li>
+<li>Jon Peddie "Famous Graphics Chips" 系列：TMS34010、XGA、GLINT、RIVA 128、GeForce 256、Talisman、i740、NV1</li>
+<li>Vintage3D.org：3dfx、Rendition、S3、ATI、PowerVR、3Dlabs 各页</li>
+<li>retro.swarm.cz：ViRGE deep dive；NT4 OpenGL MCD</li>
+<li>Fabien Sanglard：3dfx SST-1 架构、VQuake</li>
+<li>3dfx SST-1 Datasheet；TVP4020 Permedia 2 Architecture Overview 1997</li>
+<li>Microsoft 新闻稿：OpenGL 1.1、DirectX 3/6/7/8、Fahrenheit</li>
+<li>John Carmack .plan，1996-12-23</li>
+<li>copetti.org：PlayStation、Nintendo 64、Dreamcast</li>
+<li>Wikipedia 各芯片与 API 条目，用于日期交叉核对</li>
+</ul>
+<p>本地副本：research/早期图形加速卡发展史.md</p>
+</footer>
+</div>
