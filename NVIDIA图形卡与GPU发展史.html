@@ -1,0 +1,583 @@
+<title>NVIDIA 三十年</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F1F3EE; --surface:#FAFBF8; --ink:#171C18; --muted:#5A645C; --rule:#D2D9D0;
+  --accent:#2F7A3C; --accent-soft:#D9EADB; --accent-ink:#1E5A2A;
+  --graphite:#3A4240; --code:#E5E9E3; --hl:#FFF4D6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121613; --surface:#1A201B; --ink:#E5E9E3; --muted:#98A39A; --rule:#2B332D;
+    --accent:#7CC47F; --accent-soft:#1F3322; --accent-ink:#A9DDA9;
+    --graphite:#C4CCC6; --code:#20271F; --hl:#3A3220;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121613; --surface:#1A201B; --ink:#E5E9E3; --muted:#98A39A; --rule:#2B332D;
+  --accent:#7CC47F; --accent-soft:#1F3322; --accent-ink:#A9DDA9;
+  --graphite:#C4CCC6; --code:#20271F; --hl:#3A3220;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Archivo","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16px;line-height:1.75;padding-block:0 6rem;padding-inline:clamp(16px,4vw,40px)}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--accent-ink)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;margin:.5rem 0 1rem;font-weight:700;letter-spacing:-.015em;text-wrap:balance}
+.lede{font-size:1.08rem;max-width:68ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"JetBrains Mono",monospace;font-size:.76rem;color:var(--muted)}
+/* generation ribbon */
+.ribbon{display:flex;gap:6px;overflow-x:auto;padding:1.5rem 0 .75rem;scrollbar-width:thin}
+.ribbon div{flex:0 0 auto;min-width:5.4em;padding:.45rem .55rem;background:var(--surface);border:1px solid var(--rule);border-radius:3px;font-family:"JetBrains Mono",monospace;font-size:.68rem;line-height:1.35;color:var(--muted)}
+.ribbon div b{display:block;color:var(--ink);font-weight:600;font-size:.74rem}
+.ribbon div.dc{border-top:3px solid var(--accent)}
+.ribbon div.gf{border-top:3px solid var(--graphite)}
+.ribbon div.both{border-top:3px solid var(--accent);box-shadow:inset 0 3px 0 var(--graphite)}
+.ribbon-key{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);display:flex;gap:1.5rem;flex-wrap:wrap}
+.ribbon-key i{display:inline-block;width:1.2em;height:3px;vertical-align:middle;margin-right:.4em}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:960px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.8rem;font-family:"JetBrains Mono",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+section{padding-block:3rem 0}
+h2{font-size:1.6rem;font-weight:700;margin:0 0 1rem;letter-spacing:-.01em;text-wrap:balance}
+h2 .num{font-family:"JetBrains Mono",monospace;font-size:.78rem;color:var(--accent);display:block;letter-spacing:.14em;margin-bottom:.35rem;font-weight:500}
+h3{font-size:1.14rem;font-weight:600;margin:2.2rem 0 .6rem;text-wrap:balance;padding-left:.7rem;border-left:3px solid var(--accent)}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:600}
+code{font-family:"JetBrains Mono",monospace;font-size:.88em;background:var(--code);padding:.05em .35em;border-radius:3px}
+blockquote{margin:1.25rem 0;padding:.9rem 1.1rem;border-left:3px solid var(--accent);background:var(--surface);max-width:72ch}
+blockquote p{margin:.3rem 0;color:var(--muted)}
+.tbl{overflow-x:auto;margin:1.1rem 0 1.6rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.84rem;line-height:1.45;min-width:640px}
+th,td{padding:.5rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:600;font-size:.74rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap;position:sticky;top:0}
+td:first-child{font-weight:500;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">NVIDIA · 1993–2026</div>
+  <h1>NVIDIA 三十年：从 NV1 到 Vera Rubin 的图形卡与 GPU 架构史</h1>
+  <p class="lede">按架构代际记录每一代把什么做进了硬件、关键性能数据，以及流多处理器级别的设计变化。终点是截至 2026 年 9 月 15 日的最新出货状态。</p>
+  <div class="meta"><span>整理：2026-09-16</span><span>数据以 NVIDIA 白皮书与产品页为准</span><span>分歧处随文注明</span></div>
+  <div class="ribbon">
+    <div class="gf"><b>NV1</b>1995 · 500nm</div>
+    <div class="gf"><b>RIVA 128</b>1997 · 350nm</div>
+    <div class="gf"><b>TNT</b>1998 · 350nm</div>
+    <div class="gf"><b>GeForce 256</b>1999 · 220nm</div>
+    <div class="gf"><b>GeForce 3</b>2001 · 150nm</div>
+    <div class="gf"><b>GeForce FX</b>2003 · 130nm</div>
+    <div class="gf"><b>GeForce 6</b>2004 · 130nm</div>
+    <div class="gf"><b>GeForce 7</b>2005 · 110nm</div>
+    <div class="both"><b>G80 Tesla</b>2006 · 90nm</div>
+    <div class="both"><b>GT200</b>2008 · 65nm</div>
+    <div class="both"><b>Fermi</b>2010 · 40nm</div>
+    <div class="both"><b>Kepler</b>2012 · 28nm</div>
+    <div class="both"><b>Maxwell</b>2014 · 28nm</div>
+    <div class="both"><b>Pascal</b>2016 · 16nm</div>
+    <div class="dc"><b>Volta</b>2017 · 12nm</div>
+    <div class="gf"><b>Turing</b>2018 · 12nm</div>
+    <div class="both"><b>Ampere</b>2020 · 7/8nm</div>
+    <div class="dc"><b>Hopper</b>2022 · 4N</div>
+    <div class="gf"><b>Ada</b>2022 · 4N</div>
+    <div class="both"><b>Blackwell</b>2024 · 4NP</div>
+    <div class="dc"><b>Rubin</b>2026 · 3nm</div>
+  </div>
+  <div class="ribbon-key"><span><i style="background:var(--graphite)"></i>GeForce / 图形</span><span><i style="background:var(--accent)"></i>数据中心 / 计算</span></div>
+</header>
+</div>
+
+<nav class="toc"><ol><li><a href="#s0">总览</a></li><li><a href="#s1">固定功能时代</a></li><li><a href="#s2">可编程着色器时代</a></li><li><a href="#s3">统一着色器与 CUDA</a></li><li><a href="#s4">通用计算架构成型</a></li><li><a href="#s5">张量核心与 RT 核心</a></li><li><a href="#s6">Blackwell</a></li><li><a href="#s7">Vera Rubin 与路线图</a></li><li><a href="#s8">主要参考来源</a></li></ol></nav>
+
+<div class="wrap">
+<blockquote>
+<p>从 1995 年的 NV1 到 2026 年开始出货的 Vera Rubin，按架构代际记录每一代硬化了哪些功能、关键性能数据与 SM 级别的架构变化。终点为截至 2026 年 9 月 15 日的最新发布状态。</p>
+<p>数据以 NVIDIA 白皮书与产品页为准，其次是 Wikipedia、TechPowerUp、AnandTech、Beyond3D、Vintage3D 等；来源有分歧处随文注明。整理日期：2026-09-16。</p>
+</blockquote>
+<p><strong>约定</strong></p>
+<ul>
+<li>FP32 算力：G80/GT200 按 NVIDIA 官方"MAD+MUL"计（每核心每周期 3 flop），Fermi 起按 FMA 计（2 flop）。G80 之前的 vec4 架构没有标准算法，给出的是估算值。</li>
+<li>张量算力：Ampere 起给出"稠密 | 稀疏"两个数，稀疏指 2:4 结构化稀疏。</li>
+<li>"启用"指旗舰卡实际开启的单元数，"完整"指整颗芯片的物理单元数。</li>
+<li>价格为美国首发建议零售价。</li>
+</ul>
+<section id="s0">
+<h2><span class="num">00</span>总览</h2>
+<h3>0.1 架构代际一览</h3>
+<div class="tbl"><table><thead><tr><th>架构（年份）</th><th>工艺</th><th>旗舰芯片 / 晶体管 / 面积</th><th>每 SM 组织</th><th>本代新硬化的关键能力</th></tr></thead><tbody>
+<tr><td>NV1（1995）</td><td>500 nm</td><td>NV1，约 100 万</td><td>二次曲面渲染器</td><td>曲面纹理映射（失败）</td></tr>
+<tr><td>NV3 RIVA 128（1997）</td><td>350 nm</td><td>350 万，90 mm²</td><td>1 像素管线 × 1 TMU</td><td>三角形设置、128 位显存总线、2D/3D/视频合一</td></tr>
+<tr><td>NV4/NV5 TNT（1998–99）</td><td>350/250 nm</td><td>700 万 / 1500 万</td><td>2 × 1</td><td>32 位色、24 位 Z + 模板、单遍双纹理</td></tr>
+<tr><td>NV10 Celsius GeForce 256（1999）</td><td>220 nm</td><td>2300 万，139 mm²</td><td>4 × 1 + 固定 T&amp;L</td><td><strong>硬件变换与光照</strong>、立方贴图、寄存器合成器</td></tr>
+<tr><td>NV15 GeForce 2（2000）</td><td>180 nm</td><td>2500 万，88 mm²</td><td>4 × 2</td><td>NSR 逐像素着色、TwinView</td></tr>
+<tr><td>NV20 Kelvin GeForce 3（2001）</td><td>150 nm</td><td>5700 万，128 mm²</td><td>4 × 2 + 1 顶点着色器</td><td><strong>可编程顶点/像素着色器（DX8）</strong>、LMA 交叉开关与 Z 压缩、MSAA</td></tr>
+<tr><td>NV25 GeForce 4（2002）</td><td>150 nm</td><td>6300 万，142 mm²</td><td>4 × 2 + 2 VS</td><td>PS 1.3、Accuview AA、nView</td></tr>
+<tr><td>NV30 Rankine GeForce FX（2003）</td><td>130 nm</td><td>1.25 亿，199 mm²</td><td>4 × 2，3 VS</td><td>CineFX SM 2.0a、FP32 着色、GDDR2</td></tr>
+<tr><td>NV40 Curie GeForce 6（2004）</td><td>130 nm</td><td>2.22 亿，287 mm²</td><td>16 × 1，6 VS</td><td>SM 3.0、FP16 HDR 混合、SLI、PureVideo</td></tr>
+<tr><td>G70 GeForce 7（2005）</td><td>110/90 nm</td><td>3.02 亿，333 mm²</td><td>24 × 1，8 VS</td><td>透明 AA、H.264 解码辅助</td></tr>
+<tr><td>G80 Tesla GeForce 8（2006）</td><td>90 nm</td><td>6.81 亿，484 mm²</td><td><strong>8 标量 SP / SM，128 SP</strong></td><td><strong>统一着色器、SIMT、CUDA</strong>、几何着色器（DX10）</td></tr>
+<tr><td>GT200 GeForce GTX 200（2008）</td><td>65 nm</td><td>14 亿，576 mm²</td><td>8 SP + 1 FP64 / SM，240 SP</td><td><strong>FP64</strong>、寄存器堆翻倍、GPU PhysX</td></tr>
+<tr><td>Fermi GF100（2010）</td><td>40 nm</td><td>30 亿，529 mm²</td><td>32 核心 / SM，512 核心</td><td><strong>L1/L2 缓存层次、ECC、统一地址、并发内核</strong>、DX11 曲面细分</td></tr>
+<tr><td>Kepler GK110（2012–13）</td><td>28 nm</td><td>71 亿，551 mm²</td><td>192 核心 + 64 FP64 / SMX</td><td>动态并行、Hyper-Q、GPU Boost、NVENC</td></tr>
+<tr><td>Maxwell GM200（2014–15）</td><td>28 nm</td><td>80 亿，601 mm²</td><td>128 核心 / SMM，四分区</td><td>分块光栅化、增量颜色压缩、能效翻倍</td></tr>
+<tr><td>Pascal GP100/GP104（2016）</td><td>16 nm</td><td>153 亿，610 mm²</td><td>64 + 32 FP64（GP100）/ 128（GP104）</td><td><strong>HBM2、NVLink 1.0</strong>、FP16 2×、页迁移、同时多投影</td></tr>
+<tr><td>Volta GV100（2017）</td><td>12 nm</td><td>211 亿，815 mm²</td><td>64 FP32 + 64 INT32 + 32 FP64 + 8 张量核心</td><td><strong>张量核心</strong>、独立线程调度、NVLink 2.0</td></tr>
+<tr><td>Turing TU102（2018）</td><td>12 nm</td><td>186 亿，754 mm²</td><td>64 + 64 + 8 张量 + <strong>1 RT 核心</strong></td><td><strong>RT 核心</strong>、INT8/INT4 张量、网格着色器、VRS、DLSS</td></tr>
+<tr><td>Ampere GA100/GA102（2020）</td><td>7 nm / 8 nm</td><td>542 亿，826 mm² / 283 亿，628 mm²</td><td>64（GA100）/ 128（GA102）FP32 + 4 张量</td><td>TF32、BF16、FP64 张量、<strong>结构化稀疏、MIG</strong>、第二代 RT</td></tr>
+<tr><td>Hopper GH100（2022）</td><td>4N</td><td>800 亿，814 mm²</td><td>128 FP32 + 64 FP64 + 4 张量</td><td><strong>FP8 Transformer 引擎、TMA、线程块簇</strong>、NVLink 4、DPX</td></tr>
+<tr><td>Ada Lovelace AD102（2022）</td><td>4N</td><td>763 亿，608.5 mm²</td><td>128 FP32 + 4 张量 + 1 RT</td><td>SER、微网格/不透明微图、光流加速器、<strong>DLSS 3 帧生成</strong>、96 MB L2</td></tr>
+<tr><td>Blackwell GB100/GB202（2024–25）</td><td>4NP / 4N</td><td>2080 亿（双芯片）/ 922 亿，750 mm²</td><td>128 FP32 + 4 张量（+1 RT）</td><td><strong>双芯片 NV-HBI、FP4、NVLink 5</strong>、Mega Geometry、AI 管理处理器、GDDR7</td></tr>
+<tr><td>Rubin VR200（2026）</td><td>3 nm</td><td>3360 亿（双芯片 + 8 HBM4）</td><td>第六代张量核心</td><td><strong>HBM4、NVLink 6</strong>、第三代 Transformer 引擎、Vera CPU 一体机架</td></tr>
+</tbody></table></div>
+<h3>0.2 三十年的三条主线</h3>
+<ol>
+<li><strong>图形管线的硬化与再软化</strong>：1999 年把 T&amp;L 装进芯片，2001 年让顶点和像素可编程，2006 年统一成标量 SIMT 处理器，2018 年又把光线追踪的 BVH 遍历做回固定功能，2025 年用神经着色器让材质和超分回到可编程。</li>
+<li><strong>从图形芯片到通用处理器</strong>：G80 的 SIMT 与 CUDA（2006）、Fermi 的缓存与 ECC（2010）、Pascal 的 NVLink 与页迁移（2016）、Volta 的张量核心（2017）、Hopper 的 Transformer 引擎（2022），每一步都在把 GPU 推向数据中心。到 2026 财年 Q2，数据中心收入占公司总营收 92%。</li>
+<li><strong>规模的物理极限</strong>：单芯片面积从 NV3 的 90 mm² 到 GH100 的 814 mm² 触到光罩极限，Blackwell 改用双芯片 NV-HBI 互连，Rubin Ultra 计划每插槽四颗；功耗从 GeForce 256 的十几瓦到 B300 的 1400 W，机架级液冷成为标配。</li>
+</ol>
+<h3>0.3 公司里程碑</h3>
+<div class="tbl"><table><thead><tr><th>时间</th><th>事件</th></tr></thead><tbody>
+<tr><td>1993-04-05</td><td>创立</td></tr>
+<tr><td>1997-08</td><td>RIVA 128，首次盈利</td></tr>
+<tr><td>1999-01-22</td><td>IPO</td></tr>
+<tr><td>1999-08-31</td><td>GeForce 256，"GPU"一词</td></tr>
+<tr><td>2000-12-15</td><td>收购 3dfx 资产</td></tr>
+<tr><td>2006-11-08</td><td>G80 与 CUDA</td></tr>
+<tr><td>2007-06-20</td><td>Tesla 品牌</td></tr>
+<tr><td>2008-02</td><td>收购 Ageia（PhysX）；Tegra 发布</td></tr>
+<tr><td>2016-04</td><td>DGX-1</td></tr>
+<tr><td>2020-04</td><td>收购 Mellanox 完成（69 亿美元）</td></tr>
+<tr><td>2022-02-08</td><td>收购 Arm 终止</td></tr>
+<tr><td>2023-05-30</td><td>市值 1 万亿美元</td></tr>
+<tr><td>2024-06</td><td>市值 3 万亿美元</td></tr>
+<tr><td>2025-10-29</td><td>市值 5 万亿美元</td></tr>
+<tr><td>2025-12-24</td><td>收购 Groq 资产（约 200 亿美元）</td></tr>
+<tr><td>2026-06-01</td><td>首个 Vera Rubin NVL72 机架交付</td></tr>
+</tbody></table></div>
+</section>
+<section id="s1">
+<h2><span class="num">01</span>固定功能时代：从 NV1 到 GeForce 4（1993–2002）</h2>
+<h3>1.1 起点：NV1 与世嘉插曲</h3>
+<p>NVIDIA 于 1993 年 4 月 5 日由 Jensen Huang、Chris Malachowsky、Curtis Priem 创立，起步资金 4 万美元，后获红杉与 Sutter Hill 2000 万美元投资。</p>
+<div class="tbl"><table><thead><tr><th>项目</th><th>NV1（Diamond Edge 3D / STG2000）</th></tr></thead><tbody>
+<tr><td>发布</td><td>1995 年 5 月 22 日</td></tr>
+<tr><td>工艺 / 晶体管</td><td>500 nm，约 100 万（Jon Peddie 称约 25 万，350 nm，有争议）</td></tr>
+<tr><td>渲染原语</td><td><strong>二次曲面片（quadratic patch）前向纹理映射</strong>，不是三角形</td></tr>
+<tr><td>填充率</td><td>12 M 像素/秒</td></tr>
+<tr><td>显存</td><td>1–4 MB DRAM/VRAM，64 位，0.4–0.48 GB/s</td></tr>
+<tr><td>其他</td><td>集成 32 声部波表音频、世嘉土星手柄接口；无 Z 缓冲</td></tr>
+</tbody></table></div>
+<p>微软决定 Direct3D 只支持三角形，NV1 的曲面方案随即失败，Diamond 在 1996 年计提 500 万美元库存。为世嘉土星后继机设计的 NV2 仍用二次曲面，被世嘉放弃（Dreamcast 最终选择 PowerVR），但世嘉社长入交昭一郎仍投资 500 万美元，Huang 后来说这笔钱"让我们多活了六个月"。1996 年末公司账上约 300 万美元，全部人手转向 NV3。</p>
+<h3>1.2 RIVA 系列：三角形、32 位色、双像素管线</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>RIVA 128（NV3）</th><th>RIVA TNT（NV4）</th><th>RIVA TNT2 Ultra（NV5）</th></tr></thead><tbody>
+<tr><td>发布</td><td>1997 年 8 月 25 日</td><td>1998 年 8 月 31 日</td><td>1999 年 3 月 15 日（5 月出货）</td></tr>
+<tr><td>工艺 / 晶体管</td><td>SGS-Thomson 350 nm，350 万</td><td>350 nm，700 万</td><td>TSMC 250 nm，1500 万</td></tr>
+<tr><td>核心频率</td><td>100 MHz</td><td>90 MHz（原计划 110–125，发热所限）</td><td>150 MHz</td></tr>
+<tr><td>像素管线 × TMU</td><td>1 × 1</td><td><strong>2 × 1（TwiN Texel）</strong></td><td>2 × 1</td></tr>
+<tr><td>填充率</td><td>100 M 像素/秒（实测约 88 M 纹素）</td><td>180 M / 180 M</td><td>300 M / 300 M</td></tr>
+<tr><td>显存 / 总线 / 带宽</td><td>4 MB SGRAM，128 位，1.6 GB/s</td><td>16 MB SDRAM，128 位，1.76 GB/s</td><td>32 MB SDR，128 位，2.93 GB/s</td></tr>
+<tr><td>API</td><td>D3D 5，OpenGL 1.0</td><td>D3D 6，OpenGL 1.2</td><td>D3D 6，AGP 4×</td></tr>
+<tr><td>首发价</td><td>板卡约 150–200 美元</td><td>约 199 美元</td><td>229 美元（Creative）</td></tr>
+<tr><td>新硬化特性</td><td>浮点三角形设置引擎（150 万三角形/秒）、128 位显存总线、AGP 从系统内存取纹理、2D/3D/视频合一</td><td><strong>32 位真彩渲染、24 位 Z + 8 位模板</strong>、单遍双纹理、三线性过滤、1024² 纹理</td><td>TNT 的 250 nm 缩微版，达到 TNT 设计频率，2048² 纹理</td></tr>
+</tbody></table></div>
+<p>RIVA 128 四个月卖出约 100 万颗，让 NVIDIA 首次盈利。其局限是只有 16 位色与 16 位 Z、无雾表、逐多边形 mipmap。TNT 的两条像素管线既可以对同一像素做双纹理，也可以每周期输出两个单纹理像素，这是后来"像素管线数 × TMU 数"这一规格写法的起点。</p>
+<h3>1.3 GeForce 256：把 T&amp;L 装进单芯片，定义 GPU</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce 256 SDR</th><th>GeForce 256 DDR</th></tr></thead><tbody>
+<tr><td>发布</td><td>1999 年 8 月 31 日发布，10 月 11 日出货</td><td>1999 年 12 月 13 日</td></tr>
+<tr><td>芯片 / 工艺</td><td>NV10（Celsius），TSMC 220 nm，139 mm²</td><td>同</td></tr>
+<tr><td>晶体管</td><td>2300 万（NVIDIA 官方）；维基百科与 TechPowerUp 写 1700 万</td><td>同</td></tr>
+<tr><td>核心频率</td><td>120 MHz</td><td>120 MHz</td></tr>
+<tr><td>像素管线 × TMU</td><td>4 × 1（QuadPipe）</td><td>同</td></tr>
+<tr><td>几何</td><td><strong>固定功能硬件 T&amp;L</strong>，峰值 1500 万三角形/秒，8 个硬件光源</td><td>同</td></tr>
+<tr><td>填充率</td><td>480 M 像素/秒</td><td>同</td></tr>
+<tr><td>显存 / 带宽</td><td>32 MB SDR，128 位，2.66 GB/s</td><td>32/64 MB DDR，128 位，4.8 GB/s</td></tr>
+<tr><td>API</td><td>DirectX 7，OpenGL 1.2.1</td><td>同</td></tr>
+<tr><td>首发价</td><td>约 249 美元</td><td>约 299 美元</td></tr>
+<tr><td>新硬化特性</td><td>硬件变换与光照、立方环境贴图、Dot3 凹凸贴图、<strong>寄存器合成器（NV_register_combiners）</strong>、S3TC/DXTC、MPEG-2 运动补偿、AGP 4×</td><td>显存带宽翻倍</td></tr>
+</tbody></table></div>
+<p>NVIDIA 对 GPU 的定义："单芯片集成变换、光照、三角形设置/裁剪与渲染引擎，且每秒至少处理 1000 万多边形。"寄存器合成器是可编程像素着色的第一步：两级通用合成器加一级最终合成器，支持有符号运算、点积和多路选择。SDR 版在 120 MHz × 4 管线下严重受显存带宽限制，DDR 版才真正释放性能。1999 年 11 月 Quadro 以 NV10GL 之名推出，与 GeForce 同硅片，靠驱动与固件启用抗锯齿线、双面光照等专业特性。</p>
+<h3>1.4 GeForce 2：NSR 与 GigaTexel</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce2 GTS（NV15）</th><th>GeForce2 Ultra</th><th>GeForce2 MX（NV11）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2000 年 4 月 26 日</td><td>2000 年 8 月 14 日</td><td>2000 年 6 月 28 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 180 nm，2500 万，88 mm²</td><td>同</td><td>180 nm，2000 万，64 mm²</td></tr>
+<tr><td>核心频率</td><td>200 MHz</td><td>250 MHz</td><td>175 MHz</td></tr>
+<tr><td>像素管线 × TMU</td><td><strong>4 × 2</strong></td><td>4 × 2</td><td>2 × 2</td></tr>
+<tr><td>填充率</td><td>800 M 像素 / 1600 M 纹素</td><td>1000 M / 2000 M</td><td>350 M / 700 M</td></tr>
+<tr><td>显存 / 带宽</td><td>32/64 MB DDR，128 位，5.3 GB/s</td><td>64 MB DDR，7.36 GB/s</td><td>32 MB SDR 128 位或 DDR 64 位，2.66 GB/s</td></tr>
+<tr><td>首发价</td><td>349–399 美元</td><td>499 美元</td><td>约 119–179 美元</td></tr>
+<tr><td>新硬化特性</td><td><strong>NSR（NVIDIA Shading Rasterizer）</strong>逐像素着色、HDVP 高清视频处理、Digital Vibrance Control</td><td>首个"千兆像素"GPU</td><td><strong>TwinView</strong> 双显示输出</td></tr>
+</tbody></table></div>
+<p>NV15 给每条管线加了第二个 TMU，纹素率翻倍，但 5.3 GB/s 的带宽喂不饱 1.6 G 纹素/秒，所以 Ultra 的高速 DDR 收益明显。NV11 是砍半的 NV15 加 TwinView，后来成为 nForce 集成显卡的核心。</p>
+<h3>1.5 GeForce 3：第一代可编程着色器</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce3（NV20）</th><th>GeForce3 Ti 500</th></tr></thead><tbody>
+<tr><td>发布</td><td>2001 年 2 月 27 日</td><td>2001 年 10 月 1 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 150 nm，5700 万，128 mm²</td><td>同</td></tr>
+<tr><td>核心频率</td><td>200 MHz</td><td>240 MHz</td></tr>
+<tr><td>像素管线 × TMU</td><td>4 × 2</td><td>4 × 2</td></tr>
+<tr><td>顶点单元</td><td><strong>1 个可编程顶点着色器</strong>（VS 1.1，128 条指令）+ 保留固定 T&amp;L</td><td>同</td></tr>
+<tr><td>填充率</td><td>800 M / 1600 M</td><td>960 M / 1920 M</td></tr>
+<tr><td>显存 / 带宽</td><td>64 MB DDR，128 位，7.36 GB/s</td><td>64 MB DDR，8.0 GB/s</td></tr>
+<tr><td>API</td><td><strong>DirectX 8：VS 1.1 / PS 1.1</strong>，OpenGL 1.3</td><td>同</td></tr>
+<tr><td>首发价</td><td>499 美元</td><td>349 美元</td></tr>
+<tr><td>新硬化特性</td><td><strong>nfiniteFX 引擎</strong>（可编程顶点着色器 + 纹理着色器 + 扩展到 8 级的寄存器合成器 = PS 1.1）、<strong>Lightspeed Memory Architecture</strong>（交叉开关显存控制器、无损 Z 压缩、Z 遮挡剔除）、HRAA 多重采样抗锯齿含 Quincunx、阴影缓冲、3D 纹理、8× 各向异性过滤</td><td>频率提升</td></tr>
+</tbody></table></div>
+<p>NV20 的像素路径在寄存器合成器前面加了一个可编程纹理寻址级（texture shaders），加上扩展的合成器一起暴露为 DX8 像素着色器 1.1。LMA 把单一 128 位控制器换成多个窄控制器的交叉开关，小访问不再浪费带宽，配合 Z 压缩与早期 Z 剔除，让多重采样抗锯齿变得可用。Xbox 的 NV2A（2001 年 11 月）是 GeForce3 衍生品，233 MHz，带<strong>两个</strong>顶点着色器，与 CPU 共享 64 MB DDR（6.4 GB/s）。微软 2000 年 3 月签约时预付 2 亿美元。</p>
+<h3>1.6 GeForce 4：Kelvin 架构的完善</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce4 Ti 4600（NV25）</th><th>GeForce4 MX 440（NV17）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2002 年 2 月 6 日</td><td>2002 年 2 月 6 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 150 nm，6300 万，142 mm²</td><td>150 nm，2900 万，65 mm²</td></tr>
+<tr><td>核心频率</td><td>300 MHz</td><td>275 MHz</td></tr>
+<tr><td>像素管线 × TMU</td><td>4 × 2</td><td>2 × 2</td></tr>
+<tr><td>顶点单元</td><td><strong>2 个可编程顶点着色器</strong></td><td>仅固定 T&amp;L，无着色器</td></tr>
+<tr><td>填充率</td><td>1200 M / 2400 M</td><td>550 M / 1100 M</td></tr>
+<tr><td>显存 / 带宽</td><td>128 MB DDR，128 位，10.4 GB/s</td><td>64 MB DDR，128 位，6.4 GB/s</td></tr>
+<tr><td>API</td><td>DirectX 8.1：VS 1.1 / <strong>PS 1.3</strong></td><td>DirectX 7</td></tr>
+<tr><td>首发价</td><td>399 美元（Ti 4400 299，Ti 4200 199）</td><td>149 美元</td></tr>
+<tr><td>新硬化特性</td><td>nfiniteFX II、LMA II（Quad Cache、快速 Z 清除、自动预充电）、<strong>Accuview AA</strong>（改进采样位置、4XS 模式）、nView 多显示</td><td>GeForce2 MX 核心 + LMA II + Accuview + nView + <strong>视频处理引擎（硬件 iDCT/运动补偿）</strong></td></tr>
+</tbody></table></div>
+<p>NV17 并非 Kelvin 架构，而是 DX7 的 GeForce2 MX 管线加上 NV25 的显存控制器、抗锯齿和显示模块，"GeForce4"品牌下卖 DX7 芯片在当时受到批评。</p>
+<p><strong>同期公司事件</strong>：1999 年 1 月 22 日 IPO；2000 年 12 月 15 日以 7000 万美元现金加 100 万股收购 3dfx 的专利、商标与约 100 名工程师；2001 年 6 月 4 日发布 nForce 芯片组（集成 GeForce2 MX 级显卡、TwinBank 双通道 DDR、源自 Xbox MCPX 的 SoundStorm 音频）。</p>
+</section>
+<section id="s2">
+<h2><span class="num">02</span>可编程着色器时代：GeForce FX 到 GeForce 7（2003–2006）</h2>
+<h3>2.1 GeForce FX（NV3x，CineFX）：失败的一代</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>FX 5800 Ultra（NV30）</th><th>FX 5900 Ultra（NV35）</th><th>FX 5950 Ultra（NV38）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2003 年 1 月 27 日（零售约 3 月）</td><td>2003 年 5 月 12 日</td><td>2003 年 10 月 23 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 130 nm，1.25 亿，199 mm²</td><td>130 nm，1.35 亿，207 mm²</td><td>同 NV35</td></tr>
+<tr><td>核心 / 显存频率</td><td>500 / 500 MHz（1000 MT/s）GDDR2</td><td>450 / 425 MHz（850）DDR</td><td>475 / 475 MHz（950）</td></tr>
+<tr><td>像素管线</td><td>4 × 2，4 ROP（Z/模板 8 像素/周期；营销称"8 管线"）</td><td>4 × 2</td><td>4 × 2</td></tr>
+<tr><td>顶点单元</td><td>3 个 VS 2.0+</td><td>3</td><td>3</td></tr>
+<tr><td>填充率</td><td>2.0 G 像素 / 4.0 G 纹素</td><td>1.8 G / 3.6 G</td><td>1.9 G / 3.8 G</td></tr>
+<tr><td>显存 / 总线 / 带宽</td><td>128 MB GDDR2，<strong>128 位</strong>，16 GB/s</td><td>256 MB，<strong>256 位</strong>，27.2 GB/s</td><td>256 位，30.4 GB/s</td></tr>
+<tr><td>API</td><td>DirectX 9 SM 2.0a（PS/VS 2.0+）</td><td>同</td><td>同</td></tr>
+<tr><td>功耗 / 首发价</td><td>约 66 W / 399 美元</td><td>约 60 W / 499 美元</td><td>约 75 W / 499 美元</td></tr>
+<tr><td>新硬化特性</td><td><strong>CineFX 引擎</strong>：长着色器、管线内 FP16/FP32 精度、128 位颜色；首用 GDDR2；FlowFX 双槽风道散热器（"吸尘器"）；2D/3D 双频率；Intellisample 压缩</td><td>256 位总线、CineFX 2.0（FP32 ALU 吞吐翻倍）、UltraShadow 深度范围测试</td><td>散热器重新设计</td></tr>
+</tbody></table></div>
+<p>NV30 为 FP16/FX12 优化，跑完整 FP32 着色器时受寄存器压力和 ALU 并行度不足拖累，而 ATI R300 用 FP24 精度的 8 × 1 设计在 DX9 着色器上大幅领先。128 位 GDDR2 总线和 500 MHz 高频加剧了发热与噪音。这是 NVIDIA 历史上公认最失败的一代。</p>
+<h3>2.2 GeForce 6（NV4x）：SM 3.0、SLI 复活、PureVideo</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce 6800 Ultra（NV40）</th><th>GeForce 6600 GT（NV43）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2004 年 4 月 14 日（PCIe 版 NV45 6 月 28 日）</td><td>2004 年 8 月 12 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td><strong>IBM</strong> 130 nm，2.22 亿，287 mm²</td><td>TSMC 110 nm，1.46 亿，154 mm²</td></tr>
+<tr><td>核心 / 显存频率</td><td>400 / 550 MHz（1100）GDDR3</td><td>500 / 500 MHz（1000）</td></tr>
+<tr><td>管线配置</td><td><strong>16 像素管线 × 1 TMU，16 ROP，6 顶点着色器</strong>；每管线 2 个着色单元双发射</td><td>8 管线，3 VS，4 ROP</td></tr>
+<tr><td>填充率</td><td>6.4 G / 6.4 G</td><td>4.0 G / 4.0 G</td></tr>
+<tr><td>FP32 算力（估算）</td><td>约 100 GFLOPS</td><td>—</td></tr>
+<tr><td>显存 / 带宽</td><td>256 MB GDDR3，256 位，35.2 GB/s</td><td>128 MB，128 位，16 GB/s</td></tr>
+<tr><td>API</td><td><strong>DirectX 9.0c SM 3.0</strong></td><td>同</td></tr>
+<tr><td>功耗 / 首发价</td><td>105 W（双 Molex）/ 499 美元</td><td>47 W / 199 美元</td></tr>
+<tr><td>新硬化特性</td><td>SM 3.0（动态分支、无限长度、顶点纹理取样）、全速 FP32、<strong>FP16 混合与过滤（OpenEXR HDR）</strong>、<strong>SLI</strong>（PCIe + 桥接）、<strong>PureVideo</strong> 视频处理器、旋转网格 4× MSAA、16× AF</td><td>首个中端 SLI 部件</td></tr>
+</tbody></table></div>
+<h3>2.3 GeForce 7（G7x）：像素管线的顶点</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>7800 GTX（G70）</th><th>7900 GTX（G71）</th><th>7950 GX2</th></tr></thead><tbody>
+<tr><td>发布</td><td>2005 年 6 月 22 日</td><td>2006 年 3 月 9 日</td><td>2006 年 6 月 5 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 110 nm，3.02 亿，333 mm²</td><td>TSMC 90 nm，2.78 亿，196 mm²</td><td>2 × G71</td></tr>
+<tr><td>核心 / 显存频率</td><td>430 / 600 MHz（1200）</td><td>650 / 800 MHz（1600）</td><td>500 / 600 MHz</td></tr>
+<tr><td>管线配置</td><td><strong>24 像素管线 : 8 VS : 24 TMU : 16 ROP</strong>，每管线 2 个 vec4 MAD</td><td>24 : 8 : 24 : 16</td><td>2 × (24 : 8 : 24 : 16)</td></tr>
+<tr><td>填充率</td><td>10.3 G / 10.3 G</td><td>15.6 G / 15.6 G</td><td>2 × 12 G</td></tr>
+<tr><td>FP32 算力（估算）</td><td>约 200 GFLOPS</td><td>约 300 GFLOPS</td><td>—</td></tr>
+<tr><td>显存 / 带宽</td><td>256 MB GDDR3，256 位，38.4 GB/s</td><td>512 MB，256 位，51.2 GB/s</td><td>2 × 512 MB，2 × 38.4 GB/s</td></tr>
+<tr><td>功耗 / 首发价</td><td>约 100 W / 599 美元</td><td>105 W / 499 美元</td><td>110–143 W / 599–649 美元</td></tr>
+<tr><td>新硬化特性</td><td>透明抗锯齿（TSAA/TMAA）、伽马校正 AA、PureVideo H.264 解码辅助、64 位浮点纹理过滤</td><td>90 nm，双链路 DVI</td><td>单槽双 PCB 三明治，Quad SLI</td></tr>
+</tbody></table></div>
+<p>PS3 的 RSX（2006）是 G70 衍生的定制 ASIC：24 像素 / 8 顶点管线，550 MHz，256 MB GDDR3 走 128 位总线（20.8 GB/s），另通过 FlexIO 连接 Cell。G7x 是"像素管线 + 顶点着色器"分离架构的终点，下一代彻底推倒重来。</p>
+<p><strong>Quadro FX 时间线</strong>：FX 1000/2000（NV30GL，2003 年 1 月）、FX 4000（NV40GL，2004 年 4 月）、FX 4500（G70GL，2005 年 6 月）、FX 5500（G71GL，2006 年 4 月）。</p>
+</section>
+<section id="s3">
+<h2><span class="num">03</span>统一着色器与 CUDA：G80 到 GT200（2006–2009）</h2>
+<h3>3.1 G80 / GeForce 8800 GTX：架构上的分水岭</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>8800 GTX（G80）</th><th>8800 Ultra</th><th>8800 GT（G92）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2006 年 11 月 8 日</td><td>2007 年 5 月 2 日</td><td>2007 年 10 月 29 日</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 90 nm，6.81 亿，484 mm²（另有独立 NVIO 显示芯片）</td><td>同</td><td>TSMC 65 nm，7.54 亿，324 mm²</td></tr>
+<tr><td>频率（核心 / 着色器 / 显存）</td><td>575 / <strong>1350</strong> / 900 MHz（1800）</td><td>612 / 1512 / 1080</td><td>600 / 1500 / 900</td></tr>
+<tr><td>组织</td><td><strong>8 TPC × 2 SM × 8 SP = 128 个标量流处理器</strong>；每 SM 2 个 SFU；32 纹理寻址 / 64 纹理过滤单元；6 个 ROP 分区 × 4 = 24 ROP</td><td>同</td><td>7 TPC 启用 = 112 SP，56 TA/56 TF，16 ROP</td></tr>
+<tr><td>填充率</td><td>13.8 G 像素 / 18.4 G 纹素（双线性 36.8 G）</td><td>—</td><td>9.6 G / 33.6 G</td></tr>
+<tr><td>FP32 算力</td><td><strong>518 GFLOPS（MAD+MUL，官方）</strong>，346（仅 MAD）</td><td>576</td><td>504 / 336</td></tr>
+<tr><td>显存 / 总线 / 带宽</td><td>768 MB GDDR3，<strong>384 位</strong>，86.4 GB/s</td><td>103.7 GB/s</td><td>512 MB，256 位，57.6 GB/s</td></tr>
+<tr><td>API</td><td><strong>DirectX 10 / SM 4.0</strong>，OpenGL 3</td><td>同</td><td>同，PCIe 2.0</td></tr>
+<tr><td>功耗 / 首发价</td><td>145–155 W / 599 美元</td><td>175 W / 829 美元</td><td>105–125 W / 199–249 美元</td></tr>
+<tr><td>新硬化特性</td><td><strong>首个统一着色器架构</strong>、标量 IEEE-754 FP32 ALU、独立着色器时钟域、几何着色器与流输出、CSAA（8×/16× 覆盖采样）、Lumenex 引擎（角度无关 16× AF、HDR + AA、10 位显示）、每 SM 16 KB 共享存储器</td><td>频率提升</td><td>65 nm、PureVideo HD VP2（完整 H.264 解码）、单槽</td></tr>
+</tbody></table></div>
+<p><strong>G80 的 SIMT 执行模型（CUDA 的基础）</strong>。G80 用 128 个完全相同的标量 FP32 ALU 取代了 NV3x 到 G7x 的 vec4 像素/顶点管线，每 8 个 SP 组成一个流多处理器（SM），两个 SM 加共享的纹理单元和 L1 组成一个 TPC，八个 TPC 组成整芯片。每个 SM 有一个指令发射单元、两个特殊函数单元（超越函数以及协同发射的 MUL）、8192 项 32 位寄存器堆和 16 路 bank 的 16 KB 软件管理共享存储器。任何类型的线程（顶点、几何、像素或 CUDA 计算）都由硬件按固定 32 个一组创建、调度和退休，这一组叫 <strong>warp</strong>：SM 对一个 warp 发射一条指令，8 个 SP 用 4 个着色器周期为 32 个线程执行完，所以一个 warp 表现得像 32 宽的 SIMD 向量，但每个线程保留自己的寄存器、程序计数器和分支路径，这就是 NVIDIA 所谓的"单指令多线程"（SIMT）。warp 内分支分歧用逐线程活动掩码串行化；多个独立 warp 交错执行以掩盖纹理与显存延迟（G80 每 SM 最多 24 个 warp 即 768 线程，全芯片 12288 线程），因为所有 warp 状态都在寄存器堆里，上下文切换零开销。SP 运行在独立的 1.35 GHz 着色器时钟域，是 575 MHz 核心/ROP/纹理时钟的两倍多，这是 128 个窄标量单元能追平宽向量设计吞吐的原因。峰值按 SP 上的 MAD（2 flop）加 SFU 上的 MUL（1 flop）计算，128 × 1.35 × 3 = 518 GFLOPS，但 SFU 的 MUL 在 G80 上很难利用，到 GT200 才达到约 93% 利用率。标量 ALU 让编译器调度变得简单（无需 vec4 打包），共享存储器加线程块内的屏障同步给了 CUDA 它的编程模型：网格映射到 SM，块拆成 warp，线程通过片上共享存储器协作。</p>
+<p>CUDA 于 2006 年 11 月 8 日随 G80 发布，2007 年 2 月 16 日公测，<strong>1.0 版 2007 年 6 月 23 日发布</strong>，1.1 版 2007 年 12 月支持 G92。Tesla 品牌 2007 年 6 月 20 日推出：C870（G80，1.5 GB，518 GFLOPS，无显示输出，1299–1499 美元）、D870 桌边双 GPU、S870 1U 四 GPU（12000 美元）。</p>
+<h3>3.2 GT200 / GTX 280：双精度与更大的寄存器堆</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GTX 280（GT200）</th><th>GTX 285（GT200b）</th><th>GTX 295</th><th>Tesla C1060</th></tr></thead><tbody>
+<tr><td>发布</td><td>2008 年 6 月 16 日</td><td>2009 年 1 月 15 日</td><td>2009 年 1 月 8 日</td><td>2008 年 6 月发布，8 月出货</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 65 nm，<strong>14 亿，576 mm²</strong></td><td>TSMC 55 nm，14 亿，470 mm²</td><td>2 × GT200b</td><td>GT200</td></tr>
+<tr><td>频率</td><td>602 / 1296 / 1107 MHz（2214）</td><td>648 / 1476 / 1242</td><td>576 / 1242 / 999</td><td>1296 MHz 着色器</td></tr>
+<tr><td>组织</td><td><strong>10 TPC × 3 SM × 8 SP = 240 SP</strong>；每 SM 1 个 FP64 FMA 单元（共 30 个）；80 纹理单元；8 ROP 分区 × 4 = 32 ROP</td><td>同</td><td>2 × 240 SP，2 × 28 ROP</td><td>240 SP</td></tr>
+<tr><td>寄存器堆 / 线程</td><td>每 SM 16384 × 32 位（G80 的两倍），32 warp / 1024 线程，全芯片 30720 线程</td><td>同</td><td>同</td><td>同</td></tr>
+<tr><td>填充率</td><td>19.3 G / 48.2 G</td><td>20.7 G / 51.8 G</td><td>—</td><td>—</td></tr>
+<tr><td>FP32 / FP64</td><td><strong>933 GFLOPS（MAD+MUL）/ 77.8 GFLOPS</strong></td><td>1063 / 88.6</td><td>1789</td><td>933 / 78</td></tr>
+<tr><td>显存 / 总线 / 带宽</td><td>1 GB GDDR3，<strong>512 位</strong>，141.7 GB/s</td><td>1 GB，512 位，159 GB/s</td><td>2 × 896 MB，2 × 448 位，2 × 111.9 GB/s</td><td>4 GB，512 位，102 GB/s</td></tr>
+<tr><td>功耗 / 首发价</td><td>236 W / 649 美元（数周内降至 499）</td><td>204 W / 359–399 美元</td><td>289 W / 499 美元</td><td>188 W / 1699 美元</td></tr>
+<tr><td>新硬化特性</td><td><strong>首次硬件 FP64</strong>、寄存器堆翻倍、双发射改进、10 位色、GPU PhysX（2008 年 8 月驱动）、HybridPower、计算能力 1.3</td><td>55 nm</td><td>双 PCB</td><td>4 GB 无显示输出</td></tr>
+</tbody></table></div>
+<p>GT200 是当时最大最复杂的芯片。FP64 为 FP32 的 1/8（按 MAD 计）或 1/12（按 MAD+MUL 计），同一硬件的两种算法。Tesla S1070 1U 装四颗 GT200，16 GB 显存，约 4.1 TFLOPS 单精度，800 W，7999 美元。</p>
+<p><strong>同期事件</strong>：2008 年 2 月 4 日宣布收购 Ageia，PhysX 移植到 CUDA；2008 年 2 月 12 日发布 Tegra APX 2500（ARM11 + GeForce ULP），首个出货产品是 2009 年 9 月的 Zune HD；2008 年 12 月发布 Ion（GeForce 9400M 芯片组配 Intel Atom）；Quadro FX 4600/5600（G80GL，2007 年 3 月）、FX 5800（GT200GL，4 GB，2008 年 11 月）。</p>
+</section>
+<section id="s4">
+<h2><span class="num">04</span>通用计算架构成型：Fermi 到 Pascal（2010–2016）</h2>
+<p>这一阶段的主线是把 G80 的 SIMT 模型改造成一部真正的通用处理器：缓存层次、ECC、统一地址空间、动态并行、抢占、页迁移，然后在 Pascal 上加上 HBM2 与 NVLink，为深度学习时代铺路。</p>
+<h3>4.1 Fermi（2010，TSMC 40 nm）：第一个有缓存层次的 GPU</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GTX 480（GF100）</th><th>GTX 580（GF110）</th><th>Tesla C2050</th><th>Tesla M2090</th></tr></thead><tbody>
+<tr><td>发布</td><td>2010 年 3 月 26 日</td><td>2010 年 11 月 9 日</td><td>2010 年</td><td>2011 年 5 月</td></tr>
+<tr><td>晶体管 / 面积</td><td><strong>30 亿，529 mm²</strong></td><td>30 亿，520 mm²</td><td>同 GF100</td><td>同 GF110</td></tr>
+<tr><td>SM 启用 / 完整</td><td>15 / 16</td><td>16 / 16</td><td>14 / 16</td><td>16 / 16</td></tr>
+<tr><td>CUDA 核心</td><td>480</td><td>512</td><td>448</td><td>512</td></tr>
+<tr><td>TMU : ROP</td><td>60 : 48</td><td>64 : 48</td><td>56 : 48</td><td>64 : 48</td></tr>
+<tr><td>频率（核心 / 着色器 / 显存）</td><td>701 / 1401 / 3696 MHz</td><td>772 / 1544 / 4008</td><td>575 / 1150 / 3000</td><td>650 / 1300 / 3700</td></tr>
+<tr><td>显存</td><td>1.5 GB GDDR5，384 位，177.4 GB/s</td><td>1.5/3 GB，192.4 GB/s</td><td>3 GB ECC，144 GB/s</td><td>6 GB ECC，177.6 GB/s</td></tr>
+<tr><td>FP32 / FP64</td><td>1345 / 168 GFLOPS（1/8）</td><td>1581 / 198</td><td>1030 / <strong>515</strong>（1/2）</td><td>1331 / 666</td></tr>
+<tr><td>功耗 / 首发价</td><td>250 W / 499 美元</td><td>244 W / 499 美元</td><td>247 W</td><td>225 W</td></tr>
+</tbody></table></div>
+<p><strong>SM 组织</strong>（Fermi 白皮书）：16 个 SM 围绕一个 <strong>768 KB 统一 L2</strong>；每 SM <strong>32 个 CUDA 核心</strong>、<strong>2 个 warp 调度器 + 2 个分发单元</strong>（各向 16 核心、16 LD/ST 或 4 SFU 发一条指令；FP64 不能双发射）、16 个 LD/ST、4 个 SFU、<strong>32768 × 32 位寄存器堆（128 KB）</strong>、<strong>64 KB 可配置共享/L1</strong>（48/16 或 16/48）。每 SM 每周期最多 16 个 FP64 FMA（1/2 速率，GeForce 限到 1/8）。6 个 64 位显存控制器组成 384 位。图形侧每 SM 一个 PolyMorph 引擎（共 16 个），4 个 GPC 各带一个光栅引擎。</p>
+<p><strong>新硬化特性</strong>：首个支持 ECC 的 GPU（寄存器、共享存储器、L1、L2、DRAM）；40 位统一地址空间让完整 C++ 成为可能；并发内核执行；GigaThread 引擎上下文切换快 10 倍；IEEE 754-2008 FMA；DX11 曲面细分由 PolyMorph 引擎完成；分布式光栅引擎。GF100 功耗与发热是当时的主要批评，GF110 修正后成为 GTX 580。</p>
+<h3>4.2 Kepler（2012–2014，TSMC 28 nm）：SMX 与去掉着色器高频时钟</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GTX 680（GK104）</th><th>GTX Titan（GK110）</th><th>GTX 780 Ti（GK110B）</th><th>Tesla K20X</th><th>Tesla K40</th><th>Tesla K80（2 × GK210）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2012 年 3 月 22 日</td><td>2013 年 2 月 21 日</td><td>2013 年 11 月 7 日</td><td>2012 年 11 月 12 日</td><td>2013 年 10 月 8 日</td><td>2014 年 11 月 17 日</td></tr>
+<tr><td>晶体管 / 面积</td><td>35.4 亿，294 mm²</td><td><strong>71 亿，551 mm²</strong></td><td>同</td><td>同</td><td>同</td><td>2 × GK210</td></tr>
+<tr><td>SMX 启用 / 完整</td><td>8 / 8</td><td>14 / 15</td><td>15 / 15</td><td>14 / 15</td><td>15 / 15</td><td>2 × 13</td></tr>
+<tr><td>CUDA 核心（FP64 单元）</td><td>1536（64）</td><td>2688（896）</td><td>2880（960）</td><td>2688（896）</td><td>2880（960）</td><td>2 × 2496</td></tr>
+<tr><td>TMU : ROP</td><td>128 : 32</td><td>224 : 48</td><td>240 : 48</td><td>224 : 48</td><td>240 : 48</td><td>2 × 208 : 48</td></tr>
+<tr><td>基础 / 加速频率</td><td>1006 / 1058 MHz</td><td>837 / 876</td><td>876 / 928</td><td>732</td><td>745 / 875</td><td>560 / 875</td></tr>
+<tr><td>显存</td><td>2 GB GDDR5 6 Gbps，256 位，192.3 GB/s</td><td>6 GB，384 位，288.4 GB/s</td><td>3 GB 7 Gbps，336.5 GB/s</td><td>6 GB，250 GB/s</td><td>12 GB，288 GB/s</td><td>2 × 12 GB，2 × 240 GB/s</td></tr>
+<tr><td>L2</td><td>512 KB</td><td>1.5 MB</td><td>1.5 MB</td><td>1.5 MB</td><td>1.5 MB</td><td>2 × 1.5 MB</td></tr>
+<tr><td>FP32 / FP64</td><td>3.09 TFLOPS / 129 GFLOPS（1/24）</td><td>4.5 TFLOPS / 1.3–1.5 TFLOPS（驱动切换 1/3）</td><td>5.05 TFLOPS</td><td>3.94 / 1.31 TFLOPS</td><td>4.29–5.04 / 1.43–1.68</td><td>5.6–8.7 / 1.87–2.91</td></tr>
+<tr><td>功耗 / 首发价</td><td>195 W / 499 美元</td><td>250 W / 999 美元</td><td>250 W / 699 美元</td><td>235 W</td><td>235 W</td><td>300 W</td></tr>
+</tbody></table></div>
+<p><strong>SMX 重设计</strong>：核心与主频同步，取消 2 倍"着色器热时钟"以省电。GK110 SMX：<strong>192 个 FP32 核心、64 个 FP64 单元、32 SFU、32 LD/ST、16 纹理单元</strong>；<strong>4 个 warp 调度器带 8 个分发单元</strong>（每 warp 每周期两条独立指令，FP64 可以双发射）；<strong>65536 个寄存器（256 KB）</strong>，每线程最多 255 个；64 KB 可配置共享/L1（新增 32/32 分法）加新的 <strong>48 KB 只读数据缓存</strong>；<strong>1.5 MB L2</strong>（Fermi 两倍）。GK104 每 SMX 只有 8 个 FP64 单元（1/24），L2 共 512 KB。GK210（K80）把每 SMX 资源翻倍：131072 个寄存器、128 KB 共享/L1。计算能力 3.0 / 3.5 / 3.7。</p>
+<p><strong>新硬化特性</strong>：GPU Boost（GTX 680，170 W 典型板功耗目标）；<strong>动态并行</strong>（内核启动内核）、<strong>Hyper-Q</strong>（32 个硬件工作队列，Fermi 只有 1 个）、网格管理单元、GPUDirect RDMA（GK110）；shuffle 指令；无绑定纹理；TXAA；自适应垂直同步；<strong>NVENC H.264 硬件编码器</strong>；PolyMorph 2.0。Titan 系列通过驱动开关开放 1/3 速率 FP64。ORNL 的 Titan 超级计算机（18688 颗 K20X，2012 年 11 月 TOP500 第一）与 GTX Titan 同芯片。</p>
+<h3>4.3 Maxwell（2014–2015，TSMC 28 nm）：SMM 分区与能效</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GTX 750 Ti（GM107）</th><th>GTX 980（GM204）</th><th>GTX Titan X（GM200）</th><th>GTX 980 Ti</th><th>Tesla M40</th></tr></thead><tbody>
+<tr><td>发布</td><td>2014 年 2 月 18 日</td><td>2014 年 9 月 18 日</td><td>2015 年 3 月 17 日</td><td>2015 年 6 月 1 日</td><td>2015 年 11 月</td></tr>
+<tr><td>晶体管 / 面积</td><td>18.7 亿，148 mm²</td><td>52 亿，398 mm²</td><td><strong>80 亿，601 mm²</strong></td><td>同</td><td>同</td></tr>
+<tr><td>GPC / SMM</td><td>1 / 5</td><td>4 / 16</td><td>6 / 24</td><td>6 / 22</td><td>6 / 24</td></tr>
+<tr><td>CUDA 核心</td><td>640</td><td>2048</td><td>3072</td><td>2816</td><td>3072</td></tr>
+<tr><td>TMU : ROP</td><td>40 : 16</td><td>128 : 64</td><td>192 : 96</td><td>176 : 96</td><td>192 : 96</td></tr>
+<tr><td>基础 / 加速</td><td>1020 / 1085 MHz</td><td>1126 / 1216</td><td>1000 / 1075</td><td>1000 / 1075</td><td>948 / 1114</td></tr>
+<tr><td>显存</td><td>2 GB GDDR5，128 位，86.4 GB/s</td><td>4 GB 7 Gbps，256 位，224 GB/s</td><td>12 GB，384 位，336.5 GB/s</td><td>6 GB，336.5 GB/s</td><td>12/24 GB，288 GB/s</td></tr>
+<tr><td>L2</td><td>2 MB</td><td>2 MB</td><td>3 MB</td><td>3 MB</td><td>3 MB</td></tr>
+<tr><td>FP32 / FP64</td><td>1.31 TFLOPS / 1/32</td><td>4.6–5.0 TFLOPS / 1/32</td><td>6.1–6.6 TFLOPS</td><td>5.6–6.1</td><td>6.84</td></tr>
+<tr><td>功耗 / 首发价</td><td><strong>60 W</strong> / 149 美元</td><td><strong>165 W</strong> / 549 美元</td><td>250 W / 999 美元</td><td>250 W / 649 美元</td><td>250 W</td></tr>
+</tbody></table></div>
+<p><strong>SMM 重设计</strong>："每个 SM 现在分成四个独立处理块，各有自己的指令缓冲、调度器和 32 个 CUDA 核心"，每 SMM 128 核心；每个调度器每周期分发两条指令；每块 16384 个寄存器（每 SMM 256 KB）。两个处理块共享 4 个纹理过滤单元和一个纹理缓存（每 SMM 8 TMU）。L1 并入纹理缓存，共享存储器成为<strong>独立专用单元</strong>：GM107 64 KB，GM204/GM200 <strong>96 KB</strong>。NVIDIA 宣称达到 SMX 约 90% 性能而能效翻倍，每核心性能高 35–40%。GM107 的 L2 从 GK107 的 256 KB 增到 2 MB。FP64 全线每 SM 4 个单元（1/32）。计算能力 5.0 / 5.2。</p>
+<p><strong>新硬化特性</strong>：第三代增量颜色压缩；DSR 动态超分辨率；MFAA；VXGI 体素全局光照；VR Direct；DX12 特性级别 12_1（保守光栅化、ROV）；HDMI 2.0；NVENC 支持 H.265 编码。<strong>分块光栅化</strong>：David Kanter 在 2016 年 8 月用实验证明 Maxwell 和 Pascal 使用一种分块的即时模式光栅器，分块大小自适应片上缓冲，NVIDIA 从未官方披露，这是 Maxwell 在同一 28 nm 上能效大增的关键之一。GTX 970 的 3.5 GB + 0.5 GB 分段显存是 GM204 裁剪造成的著名争议。</p>
+<h3>4.4 Pascal（2016，TSMC 16 nm FinFET）：HBM2、NVLink 与半精度</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>Tesla P100 SXM2（GP100）</th><th>GTX 1080（GP104）</th><th>Titan X Pascal（GP102）</th><th>GTX 1080 Ti（GP102）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2016 年 4 月 5 日</td><td>2016 年 5 月 27 日</td><td>2016 年 8 月 2 日</td><td>2017 年 3 月 10 日</td></tr>
+<tr><td>晶体管 / 面积</td><td><strong>153 亿，610 mm²</strong></td><td>72 亿，314 mm²</td><td>120 亿，471 mm²</td><td>同</td></tr>
+<tr><td>GPC / TPC / SM</td><td>6 / 28 / 56（完整 60）</td><td>4 / 20 / 20</td><td>6 / 28 / 28（完整 30）</td><td>6 / 28 / 28</td></tr>
+<tr><td>每 SM 核心（FP32 + FP64）</td><td><strong>64 + 32</strong></td><td>128 + 4</td><td>128 + 4</td><td>128 + 4</td></tr>
+<tr><td>CUDA 核心</td><td>3584（1792 FP64）</td><td>2560</td><td>3584</td><td>3584</td></tr>
+<tr><td>TMU : ROP</td><td>224 : 96</td><td>160 : 64</td><td>224 : 96</td><td>224 : 88</td></tr>
+<tr><td>基础 / 加速</td><td>1328 / 1480 MHz</td><td>1607 / <strong>1733</strong></td><td>1417 / 1531</td><td>1480 / 1582</td></tr>
+<tr><td>显存</td><td><strong>16 GB HBM2，4096 位，720 GB/s</strong></td><td>8 GB GDDR5X 10 Gbps，256 位，320 GB/s</td><td>12 GB GDDR5X，384 位，480 GB/s</td><td>11 GB GDDR5X 11 Gbps，352 位，484 GB/s</td></tr>
+<tr><td>L2</td><td>4 MB</td><td>2 MB</td><td>3 MB</td><td>2.75 MB</td></tr>
+<tr><td>FP32 / FP64 / FP16</td><td><strong>10.6 / 5.3 / 21.2 TFLOPS</strong></td><td>8.87 TFLOPS / 1/32 / 1/64</td><td>10.2–11 TFLOPS</td><td>10.6–11.3 TFLOPS</td></tr>
+<tr><td>NVLink</td><td><strong>NVLink 1.0，4 链路，160 GB/s</strong></td><td>无（SLI HB 桥）</td><td>无</td><td>无</td></tr>
+<tr><td>功耗 / 首发价</td><td>300 W</td><td>180 W / 599 美元（FE 699）</td><td>250 W / 1200 美元</td><td>250 W / 699 美元</td></tr>
+</tbody></table></div>
+<p><strong>SM 重设计</strong>：GP100 的 SM 只有 <strong>64 FP32 + 32 FP64</strong>，分两个处理块，每块 32 核心、一个 warp 调度器、两个分发单元；寄存器堆仍是 256 KB，但核心数减半，所以每核心的寄存器与共享存储器翻倍；64 KB 专用共享存储器加 L1/纹理缓存；4 MB L2；<strong>FP16 以成对操作达到 FP32 两倍速率</strong>。GP104 保留 Maxwell 式 128 核心四分区 SM，96 KB 共享、48 KB L1。计算能力 6.0 / 6.1。</p>
+<p><strong>新硬化特性</strong>：CoWoS 中介层上的 HBM2 带原生 ECC（不再有 Kepler 软 ECC 的容量与带宽损失）；<strong>NVLink 1.0</strong>；统一内存的<strong>硬件页错误与 49 位虚拟寻址</strong>（页迁移引擎）；指令级计算抢占（GP100）与像素级图形抢占（GP104）；PolyMorph 引擎中的<strong>同时多投影</strong>单元（最多 16 个投影，用于 VR）；第四代增量颜色压缩（新增 4:1 与 8:1 模式）；GPU Boost 3.0；Fast Sync；HDR 显示管线、DP 1.4、HDMI 2.0b、10 位 HEVC 编解码。<strong>DGX-1</strong>（2016 年 4 月）：8 颗 P100 组成 NVLink 混合立方网格，170 TFLOPS FP16，12.9 万美元，Huang 亲手把第一台送到 OpenAI。</p>
+<h3>4.5 同期的 Tegra 与其他</h3>
+<ul>
+<li><strong>Tegra K1</strong>（2014 年 1 月 CES）：一个 Kepler SMX，192 核心，28 nm，约 365 GFLOPS；有四核 A15 与双核 64 位 <strong>Denver</strong>（二进制翻译到内部 VLIW）两版。</li>
+<li><strong>Tegra X1</strong>（2015 年 1 月 CES）：2 个 SMM，256 个 Maxwell 核心，4 × A57 + 4 × A53，20 nm，超过 1 TFLOPS FP16。用于 Shield TV（2015 年 5 月）与 <strong>Nintendo Switch</strong>（2017 年 3 月 3 日，底座模式 768 MHz 约 393 GFLOPS）。</li>
+<li><strong>G-Sync</strong>（2013 年 10 月 18 日）可变刷新率模块；<strong>GRID</strong> 云 GPU 与云游戏（2013 年，2015 年 9 月改名 GeForce Now）；Titan 品牌始于 2013 年 2 月。</li>
+</ul>
+</section>
+<section id="s5">
+<h2><span class="num">05</span>张量核心与 RT 核心：Volta 到 Ada Lovelace（2017–2023）</h2>
+<p>从这一代起，NVIDIA 的 GPU 分裂为两条产品线：面向数据中心的 xx100 大芯片（HBM、NVLink、FP64、无 RT 核心）与面向游戏和工作站的 xx102 芯片（GDDR、RT 核心、显示输出）。算力表中张量核心数据以"稠密 | 稀疏"给出，稀疏指 Ampere 起支持的 2:4 结构化稀疏。</p>
+<h3>5.1 Volta（2017）：张量核心与独立线程调度</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>Tesla V100 SXM2（GV100）</th><th>Titan V</th></tr></thead><tbody>
+<tr><td>发布</td><td>2017 年 5 月 10 日（GTC），年中出货</td><td>2017 年 12 月 7 日，2999 美元</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 12 nm FFN，<strong>211 亿，815 mm²</strong></td><td>同</td></tr>
+<tr><td>完整芯片</td><td>6 GPC，84 SM，5376 FP32，672 张量核心，6 MB L2</td><td>同</td></tr>
+<tr><td>启用</td><td><strong>80 SM，5120 CUDA 核心，2560 FP64，640 张量核心</strong></td><td>80 SM，5120</td></tr>
+<tr><td>每 SM</td><td>64 FP32 + 64 INT32 + 32 FP64；<strong>8 个第一代张量核心</strong>（每周期 4×4×4 FP16 乘加，FP32 累加）；256 KB 寄存器；128 KB 合并 L1/共享存储器；4 个分区</td><td>同</td></tr>
+<tr><td>加速频率</td><td>1530 MHz</td><td>1455 MHz</td></tr>
+<tr><td>FP32 / FP64 / FP16</td><td><strong>15.7 / 7.8 / 31.4 TFLOPS</strong></td><td>14.9 / 7.45 / 29.8</td></tr>
+<tr><td>张量 FP16</td><td><strong>125 TFLOPS</strong></td><td>约 110</td></tr>
+<tr><td>显存 / 带宽</td><td>16/32 GB HBM2，4096 位，<strong>900 GB/s</strong></td><td>12 GB HBM2，3072 位，653 GB/s</td></tr>
+<tr><td>NVLink</td><td><strong>NVLink 2.0，6 链路 × 50 GB/s = 300 GB/s</strong></td><td>禁用</td></tr>
+<tr><td>功耗</td><td>300 W</td><td>250 W</td></tr>
+</tbody></table></div>
+<p><strong>架构变化</strong>。Volta 把 Pascal 的 SM 分成四个分区，每个分区有自己的 L0 指令缓存、warp 调度器、16 FP32 + 16 INT32 + 8 FP64 通道和 2 个张量核心。FP32 与 INT32 管线可以并行发射。<strong>独立线程调度</strong>给每个线程独立的程序计数器和调用栈，warp 内线程可以细粒度同步而不会饿死。第一代张量核心每周期完成一个 4×4×4 的 FP16 FMA，矩阵算力是 Pascal 每 SM 的 8 倍，125 TFLOPS 对 15.7 TFLOPS FP32。L1 与共享存储器合并为 128 KB 可配置块。DGX-2（2018 年 3 月）用第一代 <strong>NVSwitch</strong> 把 16 颗 V100 连成 2 PFLOPS 的单机。</p>
+<h3>5.2 Turing（2018）：RT 核心与 RTX 品牌</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce RTX 2080 Ti（TU102）</th><th>Titan RTX / Quadro RTX 8000</th><th>GTX 1660 Ti（TU116）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2018 年 8 月 20 日发布，9 月 27 日上市；<strong>999 美元（FE 1199）</strong></td><td>2018 年 12 月 18 日，2499 美元 / 约 10000 美元</td><td>2019 年 2 月 22 日，279 美元</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td>TSMC 12 nm FFN，<strong>186 亿，754 mm²</strong></td><td>同</td><td>66 亿，284 mm²</td></tr>
+<tr><td>完整芯片</td><td>6 GPC，72 SM，4608 CUDA，576 张量，72 RT，96 ROP，6 MB L2，384 位</td><td>同</td><td>—</td></tr>
+<tr><td>启用</td><td>68 SM，4352 CUDA，544 张量，<strong>68 RT 核心</strong>，352 位</td><td>72 SM，4608 CUDA，72 RT</td><td>24 SM，1536 CUDA，无 RT/张量</td></tr>
+<tr><td>每 SM</td><td>64 FP32 + 64 INT32（并发）；8 个第二代张量核心（加 INT8/INT4）；<strong>1 个 RT 核心</strong>；96 KB L1/共享</td><td>同</td><td>专用 FP16 单元替代张量核心</td></tr>
+<tr><td>加速频率</td><td>1545 MHz（FE 1635）</td><td>1770</td><td>1770</td></tr>
+<tr><td>FP32</td><td>13.4 TFLOPS（FE 14.2）</td><td>16.3</td><td>5.4</td></tr>
+<tr><td>张量</td><td>FP16 113.8 TFLOPS；INT8 227.7 TOPS；INT4 455.4 TOPS</td><td>130.5 / 261 / 522</td><td>—</td></tr>
+<tr><td>RT</td><td><strong>10 Giga Rays/s</strong>，78 RTX-OPS（后按 Ada 口径折算 42.9 RT TFLOPS）</td><td>10 GR/s</td><td>无</td></tr>
+<tr><td>显存 / 带宽</td><td>11 GB GDDR6 14 Gbps，352 位，<strong>616 GB/s</strong></td><td>24/48 GB，384 位，672 GB/s</td><td>6 GB GDDR6，192 位，288 GB/s</td></tr>
+<tr><td>NVLink</td><td>2 × x8，100 GB/s（GeForce 首次）</td><td>100 GB/s</td><td>无</td></tr>
+<tr><td>功耗</td><td>250 W（FE 260）</td><td>280 / 295 W</td><td>120 W</td></tr>
+</tbody></table></div>
+<p><strong>架构变化</strong>。Turing 沿用 Volta 的四分区 SM，把 <strong>FP32 与 INT32 并发执行</strong>作为卖点（着色器中约每 100 条浮点指令伴随 36 条整数指令，宣称每核心提升 50%），L1/纹理/共享存储器合并为 96 KB。每个 SM 加一个 <strong>RT 核心</strong>：固定功能的 BVH 遍历加光线-三角形求交，把原本需要数千条着色器指令的工作卸载。第二代张量核心保持 FP16 速率，新增 INT8（2×）和 INT4（4×），用于 DLSS 1.0。图形管线新增网格着色器、可变速率着色、纹理空间着色、多视图渲染。其他芯片：TU104（136 亿，545 mm²，RTX 2080 699 美元）、TU106（108 亿，445 mm²，RTX 2070 499 美元、RTX 2060 349 美元）；GTX 16 系列去掉 RT 与张量核心。RTX 品牌于 2018 年 3 月 GDC 首次展示（在 Volta 上配合微软 DXR），Quadro RTX 8 月 13 日发布，GeForce RTX 8 月 20 日发布。</p>
+<h3>5.3 Ampere（2020）：TF32、稀疏、FP32 数据通路翻倍</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>A100 SXM4（GA100）</th><th>GeForce RTX 3090（GA102）</th><th>RTX 3080</th></tr></thead><tbody>
+<tr><td>发布</td><td>2020 年 5 月 14 日（40 GB）；80 GB 版 11 月 16 日</td><td>2020 年 9 月 24 日，<strong>1499 美元</strong></td><td>2020 年 9 月 17 日，<strong>699 美元</strong></td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td><strong>TSMC N7，542 亿，826 mm²</strong></td><td><strong>三星 8N，283 亿，628.4 mm²</strong></td><td>同 GA102</td></tr>
+<tr><td>完整芯片</td><td>8 GPC，128 SM，8192 FP32，512 张量，48 MB L2，6 HBM 栈</td><td>7 GPC，84 SM，10752 CUDA，336 张量，84 RT，112 ROP，6 MB L2</td><td>同</td></tr>
+<tr><td>启用</td><td><strong>108 SM，6912 CUDA，3456 FP64，432 张量，40 MB L2</strong>，5 栈 5120 位</td><td>82 SM，10496 CUDA，328 张量，82 RT</td><td>68 SM，8704 CUDA，272 张量，68 RT</td></tr>
+<tr><td>每 SM</td><td>64 FP32 + 64 INT32 + 32 FP64；4 个第三代张量核心（每个 256 FP16 FMA/周期）；192 KB L1/共享；无 RT</td><td><strong>128 FP32</strong>（64 FP32 专用 + 64 FP32/INT32）；4 个第三代张量核心；1 个第二代 RT 核心；128 KB L1/共享</td><td>同</td></tr>
+<tr><td>加速频率</td><td>1410 MHz</td><td>1695 MHz</td><td>1710</td></tr>
+<tr><td>FP32 / FP64</td><td><strong>19.5 / 9.7 TFLOPS</strong>；FP64 张量 19.5</td><td><strong>35.6</strong> / 0.56</td><td>29.8</td></tr>
+<tr><td>TF32 张量</td><td><strong>156 &#124; 312</strong></td><td>35.6 &#124; 71</td><td>—</td></tr>
+<tr><td>FP16/BF16 张量</td><td><strong>312 &#124; 624</strong></td><td>142 &#124; 284（FP16 累加）</td><td>119 &#124; 238</td></tr>
+<tr><td>INT8</td><td>624 &#124; 1248 TOPS</td><td>284 &#124; 568</td><td>—</td></tr>
+<tr><td>RT</td><td>—</td><td><strong>69 RT TFLOPS</strong></td><td>58</td></tr>
+<tr><td>显存 / 带宽</td><td>40 GB HBM2 1555 GB/s；80 GB HBM2e <strong>2039 GB/s</strong></td><td><strong>24 GB GDDR6X（PAM4）19.5 Gbps，384 位，936 GB/s</strong></td><td>10 GB，320 位，760 GB/s</td></tr>
+<tr><td>NVLink</td><td><strong>NVLink 3.0，12 链路，600 GB/s</strong></td><td>4 × x4，112.5 GB/s</td><td>无</td></tr>
+<tr><td>MIG</td><td>最多 7 个实例</td><td>—</td><td>—</td></tr>
+<tr><td>功耗</td><td>400 W SXM</td><td>350 W</td><td>320 W</td></tr>
+</tbody></table></div>
+<p><strong>架构变化</strong>。Ampere 实际上是两套设计。<strong>GA100</strong> 保留 64 FP32 的 SM 但每 SM 张量吞吐翻倍，新增 <strong>TF32</strong>（10 位尾数，对 FP32 代码透明加速）、BF16、<strong>FP64 张量</strong>（FP64 为 V100 的 2.5 倍）、<strong>2:4 细粒度结构化稀疏</strong>（所有张量模式 2 倍）、40 MB L2（V100 的 6.7 倍）带驻留控制、绕过寄存器的异步拷贝（全局到共享存储器）、<strong>MIG</strong> 硬件分区。<strong>GA10x</strong> 把每个分区改成一条 16 宽 FP32 管线加一条 16 宽 FP32 或 INT32 管线，每 SM 128 FP32，每周期 FP32 是 Turing 的两倍；每 SM 张量核心减半但单个翻倍；<strong>第二代 RT 核心</strong>光线-三角形求交翻倍并硬件支持运动模糊（时间插值三角形）。其他：GDDR6X PAM4 信号、RTX IO（GPU 解压缩）、HDMI 2.1、AV1 解码、PCIe 4.0。数据中心 GA10x：A40（完整 GA102，48 GB，300 W）、A10（150 W 单槽）、A30（GA100 裁剪版）。</p>
+<h3>5.4 Hopper（2022）：FP8、Transformer 引擎与 TMA</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>H100 SXM5（GH100）</th><th>H100 PCIe</th><th>H200 SXM</th></tr></thead><tbody>
+<tr><td>发布</td><td>2022 年 3 月 22 日发布，9 月 20 日量产，Q4 出货</td><td>同</td><td>2023 年 11 月 13 日发布，2024 年 Q2 出货</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td><strong>TSMC 4N，800 亿，814 mm²</strong></td><td>同</td><td>同</td></tr>
+<tr><td>完整芯片</td><td>8 GPC，144 SM，18432 FP32，576 张量，60 MB L2</td><td></td><td></td></tr>
+<tr><td>启用</td><td><strong>132 SM，16896 CUDA，528 张量，50 MB L2</strong>，5 栈 5120 位</td><td>114 SM，14592 CUDA</td><td>132 SM</td></tr>
+<tr><td>每 SM</td><td><strong>128 FP32 + 64 INT32 + 64 FP64</strong>；4 个第四代张量核心（FP8；每 SM 每周期 MMA 是 A100 两倍）；256 KB L1/共享（共享最大 228 KB）；TMA 单元</td><td>同</td><td>同</td></tr>
+<tr><td>加速频率</td><td>约 1980 MHz</td><td>约 1755</td><td></td></tr>
+<tr><td>FP64 / FP64 张量 / FP32</td><td><strong>34 / 67 / 67 TFLOPS</strong></td><td>26 / 51 / 51</td><td>34 / 67 / 67</td></tr>
+<tr><td>TF32</td><td>495 &#124; 989</td><td>378 &#124; 756</td><td>989 稀疏</td></tr>
+<tr><td>FP16 / BF16</td><td><strong>989 &#124; 1979</strong></td><td>756 &#124; 1513</td><td>1979 稀疏</td></tr>
+<tr><td>FP8 / INT8</td><td><strong>1979 &#124; 3958</strong></td><td>1513 &#124; 3026</td><td>3958 稀疏</td></tr>
+<tr><td>显存 / 带宽</td><td><strong>80 GB HBM3，5120 位，3.35 TB/s</strong></td><td>80 GB HBM2e，2.0 TB/s</td><td><strong>141 GB HBM3e，4.8 TB/s</strong></td></tr>
+<tr><td>NVLink</td><td><strong>NVLink 4，18 链路 × 50 GB/s = 900 GB/s</strong>；PCIe Gen5</td><td>桥接 600 GB/s</td><td>900 GB/s</td></tr>
+<tr><td>功耗</td><td><strong>700 W</strong></td><td>300–350 W</td><td>最高 700 W</td></tr>
+<tr><td>价格</td><td>无官方定价，估计 2.5–3 万美元，2024 年初二级市场 4 万美元以上</td><td></td><td></td></tr>
+</tbody></table></div>
+<p><strong>架构变化</strong>。Hopper 把每 SM FP32 翻倍到 128（与 GA10x 一致）同时保留全速 FP64（64/SM）。<strong>第四代张量核心</strong>每 SM 每周期稠密 MMA 是 A100 两倍，新增 <strong>FP8（E4M3/E5M2）</strong>，配合 <strong>Transformer 引擎</strong>（逐张量在 FP8/FP16 间动态缩放），FP8 稀疏算力是 A100 FP16 稀疏的 6 倍。新的存储层次特性：<strong>张量内存加速器 TMA</strong>（把最高 5 维的块状全局到共享存储器异步拷贝的地址生成卸载出去）、<strong>线程块簇与分布式共享存储器</strong>（同一 GPC 内 SM 之间直接加载/存储/原子操作，比经全局存储器交换快约 7 倍）、异步事务屏障、50 MB L2、<strong>DPX 指令</strong>（动态规划加速最高 7 倍）。平台：HBM3、NVLink 4 与 NVSwitch 3（13.6 Tb/s，网内 SHARP 归约）、第二代 MIG 带每实例机密计算（TEE）、7 个 NVDEC 与 7 个 NVJPG。计算能力 9.0。</p>
+<p>Hopper 家族：H100 NVL（94 GB，3.9 TB/s）；<strong>GH200 Grace Hopper 超级芯片</strong>（72 核 Neoverse V2 + 480 GB LPDDR5X + H100 96 GB HBM3，<strong>NVLink-C2C 900 GB/s 一致互连</strong>，2023 年 5 月量产；后有 144 GB HBM3e 版）；中国版 H800（NVLink 削减）与 H20（78 SM，96 GB，FP8 296 | 592，2023 年末）。DGX H100 八卡 32 PFLOPS FP8 稀疏；NVLink Switch System 可连 256 卡。</p>
+<h3>5.5 Ada Lovelace（2022）：SER、微网格与 DLSS 3</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>GeForce RTX 4090（AD102）</th><th>RTX 4080 16 GB（AD103）</th><th>L40S（AD102）</th></tr></thead><tbody>
+<tr><td>发布</td><td>2022 年 9 月 20 日发布，10 月 12 日上市，<strong>1599 美元</strong></td><td>2022 年 11 月 16 日，1199 美元</td><td>2023 年 8 月</td></tr>
+<tr><td>工艺 / 晶体管 / 面积</td><td><strong>TSMC 4N，763 亿，608.5 mm²</strong></td><td>459 亿，378.6 mm²</td><td>同 AD102</td></tr>
+<tr><td>完整芯片</td><td><strong>12 GPC，144 SM，18432 CUDA，576 张量，144 RT，192 ROP，96 MB L2</strong>，384 位</td><td>7 GPC，80 SM，10240 CUDA，64 MB L2</td><td></td></tr>
+<tr><td>启用</td><td><strong>128 SM，16384 CUDA，512 张量，128 RT，72 MB L2</strong></td><td>76 SM，9728 CUDA</td><td>142 SM，18176 CUDA</td></tr>
+<tr><td>每 SM</td><td>128 FP32（64 + 64 FP32/INT32）；4 个第四代张量核心（FP8）；1 个第三代 RT 核心（含不透明微图引擎与位移微网格引擎）；128 KB L1/共享</td><td>同</td><td>同</td></tr>
+<tr><td>频率</td><td>2235 基础 / <strong>2520 加速</strong></td><td>2205 / 2505</td><td>约 2520</td></tr>
+<tr><td>FP32</td><td><strong>82.6 TFLOPS</strong></td><td>48.7</td><td>91.6</td></tr>
+<tr><td>RT</td><td><strong>191 RT TFLOPS</strong></td><td>112.7</td><td>212</td></tr>
+<tr><td>FP8 张量</td><td><strong>660.6 &#124; 1321.2</strong></td><td>约 390 &#124; 780</td><td>733 &#124; 1466</td></tr>
+<tr><td>光流加速器</td><td>305 TOPS（GA102 为 126）</td><td></td><td></td></tr>
+<tr><td>显存 / 带宽</td><td><strong>24 GB GDDR6X 21 Gbps，384 位，1008 GB/s</strong></td><td>16 GB，256 位，716.8 GB/s</td><td>48 GB GDDR6 ECC，864 GB/s</td></tr>
+<tr><td>NVLink</td><td><strong>取消</strong>（Ada 全系 GeForce）</td><td>无</td><td>无</td></tr>
+<tr><td>功耗</td><td><strong>450 W</strong></td><td>320 W</td><td>350 W</td></tr>
+<tr><td>视频</td><td>2 × 第八代 NVENC（AV1 编码），第五代 NVDEC</td><td>2 × NVENC</td><td>3 × NVENC / 3 × NVDEC</td></tr>
+</tbody></table></div>
+<p><strong>架构变化</strong>。Ada 的 SM 结构上与 GA10x 相同（128 FP32、4 张量、1 RT、128 KB L1），但换到 TSMC 4N 后在同样 450 W 下跑到约 2.5 GHz，并配上 <strong>16 倍大的 L2（96 MB）</strong>。<strong>第三代 RT 核心</strong>再次把光线-三角形吞吐翻倍，新增两个固定功能单元：<strong>不透明微图引擎</strong>（在硬件内解决 alpha 测试几何，alpha 遍历 2 倍）和<strong>位移微网格引擎</strong>（从基础网格加位移贴图生成微三角形，BVH 构建快约 10 倍、空间小约 20 倍）。<strong>着色器执行重排序 SER</strong> 在光线追踪管线加了一个阶段，把分歧的次级光线着色器调用重新分组（路径追踪最高 2–3 倍）。第四代张量核心把 Hopper 的 FP8 带到 GeForce（4090 上 1.3 PFLOPS 稀疏），新的<strong>光流加速器</strong>（300 TOPS）支撑 <strong>DLSS 3 帧生成</strong>。双 NVENC 加 AV1 编码。取消 NVLink，保留 DP 1.4a 与 PCIe 4.0。</p>
+<p>"4080 12 GB 撤回"事件：2022 年 9 月 20 日发布的 4080 12 GB（AD104，7680 CUDA，899 美元）在 10 月 14 日被撤回（"名字不对"），2023 年 1 月以 RTX 4070 Ti 名义 799 美元重新推出。RTX 4090 D（2023 年 12 月 28 日）是中国出口合规版，14592 CUDA，425 W。</p>
+<p><strong>DLSS 时间线</strong>：1.0（2019 年 2 月，逐游戏训练）→ 2.0（2020 年 3 月 23 日，通用时域网络）→ 3.0（2022 年 10 月，帧生成，RTX 40 独占）→ 3.5（2023 年 9 月 21 日，光线重建，全 RTX）→ 4（2025 年 1 月，Transformer 模型，多帧生成）→ 4.5（2026 年 1 月）→ 5（2026 年 3 月发布，9 月 3 日随 NBA 2K27 首发）。</p>
+<p><strong>公司事件</strong>：2019 年 3 月 11 日宣布 69 亿美元收购 Mellanox（2020 年 4 月完成）；2020 年 9 月 13 日宣布 400 亿美元收购 Arm，2022 年 2 月 8 日因监管终止；2023 年 5 月 30 日盘中市值首破 1 万亿美元。</p>
+</section>
+<section id="s6">
+<h2><span class="num">06</span>Blackwell（2024–2025）：双芯片、FP4 与 NVLink 5</h2>
+<h3>6.1 数据中心 Blackwell：B200 / GB200 NVL72 与 Blackwell Ultra B300</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>B200（GB200 配置）</th><th>B200（HGX）</th><th>B300 / Blackwell Ultra（GB300）</th></tr></thead><tbody>
+<tr><td>发布 / 出货</td><td>2024 年 3 月 18 日发布；首批 NVL72 机架 2024 年 11–12 月，2025 年 Q1–Q2 上量</td><td>同</td><td>2025 年 3 月 18 日发布；首个 NVL72 2025 年 7 月 3 日，9 月上量</td></tr>
+<tr><td>工艺 / 芯片</td><td><strong>TSMC 4NP，两颗光罩极限芯片（2 × 约 1040 亿 = 2080 亿晶体管）以 NV-HBI 10 TB/s 互连</strong></td><td>同</td><td>同为 4NP 双芯片</td></tr>
+<tr><td>SM / CUDA</td><td>148 SM 启用，18944 CUDA（完整 160）</td><td>同</td><td><strong>160 SM，20480 CUDA</strong></td></tr>
+<tr><td>张量核心</td><td>第五代，FP4/FP6/FP8/INT8/FP16/BF16/TF32/FP64；第二代 Transformer 引擎（微张量缩放）</td><td></td><td>第五代；注意力层（SFU/指数）吞吐 2 倍；FP64 大幅削减</td></tr>
+<tr><td>FP4（稠密 / 稀疏）</td><td><strong>10 / 20 PFLOPS</strong></td><td>9 / 18</td><td><strong>15 / 20 PFLOPS</strong></td></tr>
+<tr><td>FP8</td><td>5 / 10 PFLOPS</td><td>4.5 / 9</td><td>5 / 10</td></tr>
+<tr><td>FP16/BF16</td><td>2.5 / 5 PFLOPS</td><td>2.25 / 4.5</td><td>2.5 / 5</td></tr>
+<tr><td>TF32</td><td>1.25 / 2.5 PFLOPS</td><td>1.1 / 2.25</td><td>1.1 / 2.5</td></tr>
+<tr><td>FP32 / FP64</td><td>90 / 45 TFLOPS</td><td>75 / 37</td><td>约 80 / 约 1.2–1.4</td></tr>
+<tr><td>显存</td><td>8 × HBM3e，192 GB（可用 186），<strong>8 TB/s</strong></td><td>同</td><td><strong>8 × 12 层 HBM3e，288 GB，8 TB/s</strong></td></tr>
+<tr><td>NVLink</td><td><strong>NVLink 5，18 链路，每 GPU 1.8 TB/s</strong>；NVL72 域 130 TB/s</td><td></td><td>同</td></tr>
+<tr><td>主机接口</td><td>PCIe Gen6 ×16</td><td></td><td>PCIe Gen6，ConnectX-8 800G</td></tr>
+<tr><td>功耗</td><td><strong>1200 W</strong></td><td>1000 W（B100 700 W，H100 替换件）</td><td><strong>1400 W</strong></td></tr>
+<tr><td>价格</td><td>无官方；每 GPU 约 3–4 万美元，GB200 NVL72 约 300 万美元</td><td></td><td>GB300 NVL72 约 370–400 万美元</td></tr>
+</tbody></table></div>
+<p><strong>GB200 NVL72</strong>：36 个 GB200 超级芯片（72 × B200 + 36 × Grace 72 核 Neoverse V2），1440 PFLOPS FP4 稀疏 / 720 稠密，720 PFLOPS FP8，13.4 TB HBM3e 合计 576 TB/s，130 TB/s NVLink 域，17 TB LPDDR5X，约 120 kW 液冷，每超级芯片 NVLink-C2C 900 GB/s。<strong>GB300 NVL72</strong>：1440 PFLOPS FP4 稀疏 / <strong>1080 稠密</strong>（GB200 的 1.5 倍），20 TB HBM3e，100 TFLOPS FP64。</p>
+<p><strong>新硬化特性</strong>：双芯片 NV-HBI 互连（软件视为单 GPU）；第二代 Transformer 引擎带 FP4/FP6；NVLink 5 与 NVLink Switch（网内 SHARP）；专用 <strong>RAS 引擎</strong>；机密计算 TEE-I/O；<strong>800 GB/s 解压缩引擎</strong>；HBM3e。Ultra 增加 288 GB、1.5 倍稠密 FP4、2 倍注意力加速、PCIe Gen6、CX-8，FP64 被裁减。Blackwell 在 2024 年中经历一次光罩修正（Huang："功能正常但良率低"），首批量产推迟到 Q4 2024。</p>
+<h3>6.2 消费级 Blackwell：GeForce RTX 50</h3>
+<p>完整 GB202：<strong>922 亿晶体管，750 mm²，TSMC 4N</strong>，12 GPC / 96 TPC / 192 SM / 24576 CUDA / 768 张量 / 192 RT / 128 MB L2 / 512 位。其他芯片：GB203 456 亿 378 mm² 84 SM；GB205 311 亿 263 mm² 50 SM；GB206 219 亿 181 mm² 36 SM；GB207 169 亿 149 mm² 20 SM。</p>
+<div class="tbl"><table><thead><tr><th>型号</th><th>发布 / 首发价</th><th>芯片，SM，CUDA</th><th>加速频率</th><th>显存</th><th>FP32 TFLOPS</th><th>AI TOPS FP4（稠密 / 稀疏）</th><th>RT TFLOPS</th><th>功耗</th></tr></thead><tbody>
+<tr><td><strong>RTX 5090</strong></td><td>2025 年 1 月 30 日，<strong>1999 美元</strong></td><td>GB202，170 SM，21760，680 张量，170 RT，176 ROP，96 MB L2</td><td>2407 MHz</td><td><strong>32 GB GDDR7 512 位 28 Gbps，1792 GB/s</strong></td><td><strong>104.8</strong></td><td><strong>1676 / 3352</strong></td><td>317.5</td><td><strong>575 W</strong></td></tr>
+<tr><td>RTX 5080</td><td>2025 年 1 月 30 日，999 美元</td><td>GB203，84 SM，10752</td><td>2617</td><td>16 GB 256 位 30 Gbps，960 GB/s</td><td>56.3</td><td>900 / 1801</td><td>170.6</td><td>360 W</td></tr>
+<tr><td>RTX 5070 Ti</td><td>2025 年 2 月 20 日，749 美元</td><td>GB203，70 SM，8960</td><td>2452</td><td>16 GB 256 位，896 GB/s</td><td>43.9</td><td>703 / 1406</td><td>133</td><td>300 W</td></tr>
+<tr><td>RTX 5070</td><td>2025 年 3 月 5 日，549 美元</td><td>GB205，48 SM，6144</td><td>2512</td><td>12 GB 192 位，672 GB/s</td><td>30.9</td><td>494 / 988</td><td>94</td><td>250 W</td></tr>
+<tr><td>RTX 5060 Ti</td><td>2025 年 4 月 16 日，379 / 429 美元</td><td>GB206，36 SM，4608</td><td>2572</td><td>8/16 GB 128 位，448 GB/s</td><td>23.7</td><td>约 759 稀疏</td><td>72</td><td>180 W</td></tr>
+<tr><td>RTX 5060</td><td>2025 年 5 月 19 日，299 美元</td><td>GB206，30 SM，3840</td><td>2497</td><td>8 GB 128 位，448 GB/s</td><td>19.2</td><td>约 614 稀疏</td><td>58</td><td>145 W</td></tr>
+<tr><td>RTX 5050</td><td>2025 年 7 月 1 日，249 美元</td><td>GB207，20 SM，2560</td><td>2572</td><td>8 GB GDDR6 128 位，320 GB/s</td><td>13.2</td><td>约 421 稀疏</td><td>40</td><td>130 W</td></tr>
+<tr><td>RTX PRO 6000 Blackwell</td><td>2025 年 3 月 18 日</td><td>GB202，188 SM，24064 CUDA</td><td>—</td><td><strong>96 GB GDDR7 ECC 512 位，1792 GB/s</strong></td><td>125</td><td>4000 稀疏</td><td>380</td><td>600 W（Max-Q 300 W，支持 4 路 MIG）</td></tr>
+</tbody></table></div>
+<p><strong>新硬化特性</strong>（据 RTX Blackwell 白皮书）：SM 的 FP32/INT32 数据通路完全统一，"为神经着色器设计"；第五代张量核心新增 <strong>FP4</strong>（FP8 吞吐的 2 倍）；<strong>第四代 RT 核心</strong>带三角形簇求交引擎与簇解压缩以支持 <strong>Mega Geometry</strong>（光线-三角形速率最高 2 倍）、<strong>线性扫掠球体</strong>原语（毛发）、SER 2.0；<strong>AI 管理处理器</strong>（RISC-V 上下文调度器，供 AI 与图形并发，DLSS 4 多帧生成依赖它）；显示引擎的翻转计量用于多帧生成的帧间隔控制；GDDR7 PAM3（28–30 Gbps）；DisplayPort 2.1b UHBR20（80 Gbps）；第九代 NVENC（4:2:2 H.264/HEVC、AV1 UHQ）与第六代 NVDEC；PCIe 5.0；DLSS 4 多帧生成（最多生成 3 帧）配 Transformer 超分与光线重建；RTX 神经着色器（Cooperative Vectors）、神经材质、神经面部；Reflex 2 Frame Warp。</p>
+<p>已知问题：5090/5080 的 12V-2×6 接口熔化（电流分配不均）；少数 5090/5080/5070 Ti ROP 缺失（不到 0.5%，"生产异常"）；572.xx 驱动黑屏与不稳定；取消 32 位 CUDA/PhysX。全系上市后长期高于建议零售价，2026 年 9 月因 GDDR7 与 DRAM 短缺 RTX 5090 街价报道超过 5000 美元。</p>
+<h3>6.3 其他 Blackwell 产品</h3>
+<ul>
+<li><strong>DGX Spark（GB10）</strong>：2025 年 1 月 CES 以 Project Digits 之名发布，10 月 15 日上市 3999 美元（2026 年 2 月涨至 4699）。20 核 Arm（10 × Cortex-X925 + 10 × A725）+ Blackwell GPU（6144 CUDA），1 PFLOPS FP4 稀疏，128 GB LPDDR5X 256 位 273 GB/s，ConnectX-7 200 Gb/s。</li>
+<li><strong>DGX Station GB300</strong>：72 核 Grace + B300 252 GB HBM3e + 496 GB LPDDR5X，20 PFLOPS FP4，1600 W，2026 年 3 月起出货，约 9.7–12.5 万美元。</li>
+<li><strong>Jetson AGX Thor T5000</strong>：2025 年 8 月 25 日，2560 核 Blackwell GPU，2070 TFLOPS FP4 稀疏，14 × Neoverse-V3AE，128 GB，40–130 W，开发套件 3499 美元。</li>
+<li><strong>Nintendo Switch 2（T239）</strong>：2025 年 6 月 5 日，8 × Cortex-A78C + 1536 Ampere CUDA，三星 8 nm，12 GB LPDDR5X，支持 DLSS 与光追；到 2026 年 6 月 30 日销量 2368 万台。</li>
+<li><strong>RTX Spark（N1/N1X）</strong>：Grace-Blackwell Windows on Arm PC 芯片，20 核 CPU + 6144 CUDA，128 GB 统一内存，1 PFLOPS FP4，2026 年 5 月 31 日 Computex 发布，OEM 机器 2026 年秋上市。</li>
+</ul>
+</section>
+<section id="s7">
+<h2><span class="num">07</span>现在：Vera Rubin（2026）与路线图</h2>
+<h3>7.1 截至 2026 年 9 月 15 日的状态</h3>
+<div class="tbl"><table><thead><tr><th>状态</th><th>产品</th></tr></thead><tbody>
+<tr><td><strong>在售、大量出货</strong></td><td>Blackwell Ultra GB300 NVL72 / HGX B300（数据中心主力，2026 财年 Q2 数据中心收入 890 亿美元由其驱动）；GeForce RTX 50 全系；RTX PRO 6000 Blackwell；DGX Spark；DGX Station GB300；Jetson Thor</td></tr>
+<tr><td><strong>刚开始出货</strong></td><td><strong>Vera Rubin VR200 NVL72</strong>：2026 年 1 月 5 日 CES 宣布"全面量产"；6 月 1 日 Dell 向 CoreWeave 交付首个机架；7 月下旬起向 OpenAI、CoreWeave、Google、Azure、Meta 出货；8 月 26 日财报称 Q3（8–10 月）"引入 Vera Rubin"，预计贡献约 200 亿美元，Q4 上量</td></tr>
+<tr><td><strong>已发布未出货</strong></td><td>RTX Spark N1/N1X PC（2026 年秋）；Vera 纯 CPU 机架、BlueField-4、Spectrum-6</td></tr>
+<tr><td><strong>路线图</strong></td><td>Rubin Ultra VR300 / Kyber 机架（2027 下半年）；Feynman + Rosa CPU（2028）</td></tr>
+<tr><td><strong>传闻 / 取消</strong></td><td>RTX 50 SUPER：2025 年 12 月起多方报道搁置，NVIDIA 从未官宣；RTX 60 / "RTX Rubin"（GR20x）传闻 2027 年；Rubin CPX 2025 年 9 月发布、2026 年 3 月 GTC 从路线图移除、8 月末分析师称改用 HBM4 复活，均无官方确认</td></tr>
+</tbody></table></div>
+<p>2026 年没有新的 GeForce GPU 发布。软件侧 DLSS 4.5（1 月）与 DLSS 5（3 月发布，9 月 3 日首发）是本年度的消费级更新。</p>
+<h3>7.2 Rubin GPU（VR200）</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>数值</th></tr></thead><tbody>
+<tr><td>工艺 / 芯片</td><td>TSMC 3 nm（据报 N3P）；两颗光罩级计算芯片 + 8 栈 HBM4，CoWoS-L 封装；<strong>3360 亿晶体管</strong>（Blackwell 的 1.6 倍）</td></tr>
+<tr><td>SM / 张量</td><td>224 SM（二手来源）；<strong>第六代张量核心</strong>；第三代 Transformer 引擎带硬件自适应压缩</td></tr>
+<tr><td>NVFP4</td><td><strong>50 PFLOPS 推理（稀疏）/ 35 PFLOPS 训练（稠密）</strong></td></tr>
+<tr><td>FP8 / FP6</td><td>17.5 PFLOPS 稠密</td></tr>
+<tr><td>FP16/BF16 / TF32 / FP32 / FP64</td><td>4 PFLOPS / 2 PFLOPS / 130 TFLOPS / 33 TFLOPS</td></tr>
+<tr><td>显存</td><td><strong>288 GB HBM4</strong>；CES 宣称 22 TB/s，现产品页 19.2 TB/s</td></tr>
+<tr><td>NVLink 6</td><td>CES 宣称每 GPU 3.6 TB/s、每机架 260 TB/s；现产品页 3 TB/s、216 TB/s</td></tr>
+<tr><td>功耗</td><td>未公布；报道约 1800–2300 W</td></tr>
+<tr><td>价格</td><td>无官方；VR NVL72 机架报道最高约 880 万美元</td></tr>
+</tbody></table></div>
+<p><strong>Vera CPU</strong>：88 个定制 Olympus Armv9.2 核心，176 线程，最高 1.5 TB LPDDR5X SOCAMM 1.2 TB/s，NVLink-C2C 1.8 TB/s。<strong>VR200 NVL72 机架</strong>：72 Rubin + 36 Vera，3600 PFLOPS NVFP4 推理 / 2520 训练 / 1260 FP8，20.7 TB HBM4 合计 1400 TB/s，54 TB LPDDR5X，ConnectX-9 1.6 Tb/s 扩展网络 32.4 TB/s，100% 液冷、无线缆托盘、45 °C 进水。GTC 2026 把平台扩成"七芯片、五机架"：Rubin、Vera、NVLink 6 Switch、ConnectX-9、BlueField-4、Spectrum-6（含共封装光学）以及 2025 年 12 月以约 200 亿美元收购 Groq 资产后并入的 <strong>Groq 3 LPX 推理机架</strong>（256 个 LP30 LPU，128 GB SRAM，315 PFLOPS FP8）。</p>
+<p><strong>Rubin Ultra（VR300，2027 下半年）</strong>：每插槽 4 颗计算芯片，100 PFLOPS FP4，1 TB HBM4e（32 TB/s），Kyber 机架 144 插槽（即 GTC 2025 所说的 NVL576），NVLink 7，机架约 600 kW。<strong>Feynman（2028）</strong>：Rosa CPU、LP40 LPU、NVLink 8 共封装光学、3D 堆叠、定制 HBM。</p>
+<p><strong>公司里程碑</strong>：市值 2024 年 6 月 3 万亿美元，2025 年 7 月 4 万亿，2025 年 10 月 29 日 5 万亿，2026 年 5 月 13 日 5.5 万亿；2026 财年 Q2（截至 2026 年 7 月 26 日）营收 962 亿美元，数据中心 890 亿；2025 年 9 月投资 Intel 50 亿美元、与 OpenAI 签 1000 亿美元意向；2025 年 12 月收购 Groq；2026 年 9 月投资 MediaTek 35 亿美元。</p>
+</section>
+<section id="s8">
+<h2><span class="num">08</span>主要参考来源</h2>
+<ul>
+<li>NVIDIA 架构白皮书：Fermi、GeForce GTX 680、Kepler GK110/GK210、GeForce GTX 750 Ti（GM107）、Pascal GP100、GeForce GTX 1080、Volta、Turing、Ampere GA100、Ampere GA102、Hopper、Ada Lovelace、RTX Blackwell</li>
+<li>NVIDIA 产品页与数据表：Tesla V100、A100、H100、H200、GB200 NVL72、GB300 NVL72、Vera Rubin NVL72、GeForce RTX 50 系列、RTX PRO 6000、DGX Spark</li>
+<li>NVIDIA 新闻稿：GTC 2024 Blackwell、GTC 2025 Blackwell Ultra、Rubin CPX（2025-09-09）、CES 2026 Rubin 平台、GTC 2026、2027 财年 Q2 财报及 CFO 评论（SEC）</li>
+<li>NVIDIA CUDA Programming Guide 1.0（2007）；GeForce GTX 200 Technical Brief（2008）</li>
+<li>NVIDIA 开发者博客：Turing / Ampere / Hopper Architecture In-Depth；Maxwell: The Most Advanced CUDA GPU；Vera Rubin POD</li>
+<li>Jon Peddie "Famous Graphics Chips" 系列（IEEE Computer Society / Electronic Design）：NV1、RIVA 128、GeForce 256、i740、Talisman</li>
+<li>Vintage3D.org：NV1、RIVA 128、GeForce 各页；86Box RIVA 128 历史系列</li>
+<li>Beyond3D：NV30、NV40、G80、Tesla 评测与访谈；RealWorldTech：Tile-based Rasterization in Nvidia GPUs（Kanter，2016）</li>
+<li>Tom's Hardware、AnandTech、TechPowerUp、ServeTheHome、SemiAnalysis、NextPlatform 相关评测与报道</li>
+<li>Wikipedia：各架构与产品系列条目（用于日期与规格交叉核对）；SEC 文件（3dfx 收购、财报）</li>
+</ul>
+</section>
+<footer><p>本地副本：research/NVIDIA图形卡与GPU发展史.md　·　姊妹篇：<a href="https://claude.ai/artifact/Gm6Fz44ChbEWzgZLb1323a">从帧缓冲到 GPU（1968–1999）</a></p></footer>
+</div>
