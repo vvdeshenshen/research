@@ -1,0 +1,392 @@
+<title>从 BitBLT 到着色器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600&family=Source+Code+Pro:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F3F3F6; --surface:#FBFBFD; --ink:#181923; --muted:#5C5F6E; --rule:#D5D6DF;
+  --accent:#4A3FB5; --accent-soft:#E2DFF5; --accent-ink:#3A2F9A;
+  --cpu:#DEDFE6; --eng:#E8D3B8; --eng-ink:#8A5A1E; --gpu:#CFD9F4; --gpu-ink:#2A4BA0; --plane:#D3E8DA; --plane-ink:#25633C;
+  --code:#EAEAF0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131419; --surface:#1B1C24; --ink:#E6E6EE; --muted:#9A9DAE; --rule:#2C2E3A;
+    --accent:#9D93F0; --accent-soft:#2A2650; --accent-ink:#B9B1F6;
+    --cpu:#262833; --eng:#3E2E1A; --eng-ink:#E0B27A; --gpu:#1F2A48; --gpu-ink:#9DB4F0; --plane:#1E3527; --plane-ink:#8ED0A4;
+    --code:#20222C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131419; --surface:#1B1C24; --ink:#E6E6EE; --muted:#9A9DAE; --rule:#2C2E3A;
+  --accent:#9D93F0; --accent-soft:#2A2650; --accent-ink:#B9B1F6;
+  --cpu:#262833; --eng:#3E2E1A; --eng-ink:#E0B27A; --gpu:#1F2A48; --gpu-ink:#9DB4F0; --plane:#1E3527; --plane-ink:#8ED0A4;
+  --code:#20222C;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Source Sans 3","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16.5px;line-height:1.75;padding-block:0 6rem;padding-inline:clamp(16px,4vw,40px)}
+.wrap{max-width:940px;margin:0 auto}
+a{color:var(--accent-ink)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"Source Code Pro",monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:"Source Serif 4","Songti SC","Noto Serif SC",serif;font-size:clamp(2rem,5vw,3.2rem);line-height:1.15;margin:.5rem 0 1rem;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:1.1rem;max-width:66ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"Source Code Pro",monospace;font-size:.76rem;color:var(--muted)}
+/* hero grid */
+.gridwrap{overflow-x:auto;margin:2rem 0 .5rem;padding-bottom:.4rem}
+.g{display:grid;grid-template-columns:11em repeat(6,minmax(6.4em,1fr));gap:3px;min-width:780px;font-size:.76rem}
+.g .h{font-family:"Source Code Pro",monospace;color:var(--muted);font-size:.72rem;padding:.3rem .45rem;border-bottom:1px solid var(--rule);line-height:1.3}
+.g .h b{display:block;color:var(--ink);font-weight:500}
+.g .l{padding:.45rem .5rem;font-weight:500;background:var(--surface);display:flex;align-items:center;line-height:1.3}
+.g .c{padding:.4rem .45rem;line-height:1.3;font-family:"Source Code Pro",monospace;font-size:.68rem;min-height:3em}
+.g .cpu{background:var(--cpu);color:var(--muted)}
+.g .eng{background:var(--eng);color:var(--eng-ink)}
+.g .gpu{background:var(--gpu);color:var(--gpu-ink)}
+.g .plane{background:var(--plane);color:var(--plane-ink)}
+.g .first{box-shadow:inset 0 0 0 2px var(--accent)}
+.key{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:.76rem;color:var(--muted);font-family:"Source Code Pro",monospace;margin-bottom:.5rem}
+.key i{display:inline-block;width:.95em;height:.95em;vertical-align:-.12em;margin-right:.4em;border-radius:2px}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:940px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.8rem;font-family:"Source Code Pro",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+section{padding-block:3rem 0}
+h2{font-family:"Source Serif 4","Songti SC","Noto Serif SC",serif;font-size:1.7rem;font-weight:600;margin:0 0 1rem;letter-spacing:-.01em;text-wrap:balance;position:relative;padding-bottom:.6rem}
+h2::after{content:"";position:absolute;left:0;bottom:0;width:4.5rem;height:3px;background:linear-gradient(90deg,#E0473B 0 33%,#3FA34D 33% 66%,#3B6FE0 66% 100%);border-radius:2px}
+h2 .num{font-family:"Source Code Pro",monospace;font-size:.76rem;color:var(--accent);display:block;letter-spacing:.14em;margin-bottom:.35rem;font-weight:500}
+h3{font-size:1.14rem;font-weight:600;margin:2.2rem 0 .6rem;text-wrap:balance}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:600}
+code{font-family:"Source Code Pro",monospace;font-size:.88em;background:var(--code);padding:.05em .35em;border-radius:3px}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:4px;overflow-x:auto;font-family:"Source Code Pro",monospace;font-size:.8rem;line-height:1.55;max-width:100%}
+blockquote{margin:1.25rem 0;padding:.9rem 1.1rem;border-left:3px solid var(--accent);background:var(--surface);max-width:72ch}
+blockquote p{margin:.3rem 0;color:var(--muted)}
+.tbl{overflow-x:auto;margin:1.1rem 0 1.6rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.85rem;line-height:1.45;min-width:640px}
+th,td{padding:.5rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:600;font-size:.74rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap}
+td:first-child{font-weight:500}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">2D rendering · 1973–2026</div>
+  <h1>从 BitBLT 到着色器：2D 渲染管线与字体渲染的进化</h1>
+  <p class="lede">2D 管线包含什么、专用 2D 加速引擎如何被 3D 管线吞并、字体如何从点阵走到轮廓再走到 GPU。三条线索在 2026 年汇合成一个事实：除了扫描输出时的显示平面，2D 已没有专用硬件。</p>
+  <div class="meta"><span>整理：2026-09-19</span><span>日期以论文、规范与产品发布为准</span><span>分歧处随文注明</span></div>
+
+  <div class="key"><span><i style="background:var(--cpu)"></i>CPU 软件</span><span><i style="background:var(--eng)"></i>专用 2D 引擎</span><span><i style="background:var(--gpu)"></i>3D 管线（GPU）</span><span><i style="background:var(--plane)"></i>显示平面（固定功能）</span><span><i style="box-shadow:inset 0 0 0 2px var(--accent)"></i>首次迁移</span></div>
+  <div class="gridwrap"><div class="g">
+    <div class="h">操作 \ 时代</div><div class="h"><b>1985</b>软件 GDI/QuickDraw</div><div class="h"><b>1991</b>Windows 加速器</div><div class="h"><b>2001</b>GDI+ / XRender</div><div class="h"><b>2006</b>合成时代</div><div class="h"><b>2012</b>3D 管线绘图</div><div class="h"><b>2026</b></div>
+
+    <div class="l">矩形填充 · BitBLT</div>
+    <div class="c cpu">CPU</div><div class="c eng first">8514/A · S3 911</div><div class="c eng">整数 ROP 在引擎<br>alpha 回 CPU</div><div class="c gpu">Win7 WDDM 1.1<br>BitBlt/AlphaBlend</div><div class="c gpu first">实例化四边形</div><div class="c gpu">四边形</div>
+
+    <div class="l">画线</div>
+    <div class="c cpu">Bresenham</div><div class="c eng">画线引擎</div><div class="c cpu">抗锯齿线回 CPU</div><div class="c cpu">CPU</div><div class="c gpu first">细四边形</div><div class="c gpu">四边形</div>
+
+    <div class="l">抗锯齿路径</div>
+    <div class="c cpu">PostScript RIP</div><div class="c cpu">CPU</div><div class="c cpu">精确面积累加</div><div class="c cpu">Cairo · Skia</div><div class="c gpu first">CPU 剖分 + GPU<br>模板后覆盖</div><div class="c gpu">计算着色器 / CPU+GPU 混合</div>
+
+    <div class="l">字形光栅化</div>
+    <div class="c cpu">点阵查表</div><div class="c eng">颜色扩展</div><div class="c cpu">FreeType · GDI TT</div><div class="c cpu">CPU</div><div class="c cpu">CPU → 图集</div><div class="c cpu">仍主要 CPU；SDF/Slug/Vello 在游戏与新框架</div>
+
+    <div class="l">文字合成 · ClearType</div>
+    <div class="c cpu">—</div><div class="c eng">单色→彩色</div><div class="c cpu">CPU 混合</div><div class="c gpu first">Win7 ClearTypeBlend</div><div class="c gpu">像素着色器</div><div class="c gpu">灰度为主</div>
+
+    <div class="l">窗口合成</div>
+    <div class="c cpu">画家算法 + 裁剪区域</div><div class="c cpu">CPU</div><div class="c cpu">Quartz Compositor (软件)</div><div class="c gpu first">Quartz Extreme 02 · DWM 06</div><div class="c gpu">DirectComposition · Wayland</div><div class="c gpu">GPU + 显示平面</div>
+
+    <div class="l">视频覆盖 · 光标</div>
+    <div class="c cpu">—</div><div class="c eng">硬件光标 · 覆盖层</div><div class="c eng">Streams / 覆盖层</div><div class="c plane first">HWC · KMS 平面</div><div class="c plane">MPO (8.1)</div><div class="c plane">显示平面</div>
+  </div></div>
+</header>
+</div>
+
+<nav class="toc"><ol><li><a href="#s0">总览</a></li><li><a href="#s1">2D 渲染管线包含什么</a></li><li><a href="#s2">2D 硬件加速的演变</a></li><li><a href="#s3">字体渲染的演变</a></li><li><a href="#s4">汇合</a></li><li><a href="#s5">主要参考来源</a></li></ol></nav>
+
+<div class="wrap">
+<blockquote>
+<p>三条线索合在一起讲：2D 渲染管线本身包含什么、2D 图形加速硬件如何从专用引擎演变到"全部用 3D 管线实现"、字体渲染如何从点阵走到轮廓再走到 GPU。终点是 2026 年 9 月的现状。</p>
+<p>日期以论文、规范和产品发布为准；来源有分歧处随文注明。整理日期：2026-09-19。</p>
+</blockquote>
+<section id="s0">
+<h2><span class="num">00</span>总览</h2>
+<h3>0.1 一句话结论</h3>
+<p>2D 管线的内容在四十年里换了一次"物理"：从<strong>整数像素上的布尔运算</strong>（BitBLT、光栅运算）变成<strong>带覆盖率与 alpha 的路径合成</strong>（PostScript 模型）。专用 2D 引擎擅长前者，不擅长后者；等到 GPU 把三角形光栅化、纹理采样和可编程混合做得足够便宜，2D 的每一种操作都在 3D 管线上找到了更快的等价物，专用 2D 引擎便被冻结或删除。字体是这条路上最难的一段：轮廓字体光栅化对小尺寸的像素级要求，使它成为最后一个完全迁移到 GPU 的 2D 操作，而高分屏的普及反过来削弱了 hinting 与次像素渲染存在的理由。</p>
+<h3>0.2 三条线索的时间对照</h3>
+<div class="tbl"><table><thead><tr><th>年份</th><th>2D 管线与成像模型</th><th>2D 硬件</th><th>字体</th></tr></thead><tbody>
+<tr><td>1962–1975</td><td>Bresenham 画线（1962 设计、1965 发表）、Cohen–Sutherland 裁剪（1967）、Sutherland–Hodgman（1974）、Xerox Alto BitBLT（1975）</td><td>帧缓冲 + 微码（Alto）</td><td>Hershey 笔画字体（1967）</td></tr>
+<tr><td>1981–1985</td><td>Xerox Star（1981）、QuickDraw（1983/84，区域裁剪）、PostScript（1984，路径 + 非零环绕）、Porter–Duff 合成（1984）、Windows GDI（1985）</td><td>IBM MDA/CGA 字符 ROM（1981）；TMS34010 可编程图形处理器（1986）</td><td>Mac 点阵字体（1984，Susan Kare）；PostScript Type 1（1984/85，加密）</td></tr>
+<tr><td>1987–1992</td><td>X11（1987）、NeWS（1986）、Display PostScript（1987）</td><td>IBM 8514/A 固定功能 2D 引擎（1987）；S3 86C911 Windows 加速器（1991）</td><td>BDF（1988）、ATM（1989）、TrueType（1991）、Type 1 规范公开（1990）、Windows 3.1 内置 TrueType（1992）</td></tr>
+<tr><td>1994–2001</td><td>QuickDraw GX（1994）、Java 2D（1998）、XRender（2000）、GDI+（2001）、Quartz 2D（2001，PDF 模型）</td><td>XAA（1996）；2D 引擎与 3D 芯片合一</td><td>OpenType（1996）、FreeType（1995–2000）、Win95 Plus! 灰度平滑（1995）、ClearType 发布（1998）、Uniscribe（1999）、Pango（2000）</td></tr>
+<tr><td>2002–2009</td><td>Cairo（2003）、Skia（2004）、AGG、EXA（2005）</td><td>Quartz Extreme 用 GPU 合成窗口（2002）；DWM（2006）；Compiz（2006）；AMD R600 删除 2D 引擎（2007）；Win7 GDI 部分硬件加速（2009）</td><td>ClearType 默认开启（Vista 2007）、Core Text（2007）、Loop–Blinn（2005）、Valve SDF（2007）、DirectWrite（2009）</td></tr>
+<tr><td>2010–2016</td><td>Direct2D（2009）、Android HWUI（2011）、NV_path_rendering（2011/12）、Glamor（2014）、Skia 解析抗锯齿（2016）</td><td>NVIDIA 2D 类冻结于 Fermi（2010）；DirectComposition（2012）；MPO（2013）</td><td>FreeType 字节码解释器默认开启（2010）、Retina（2010/2012）、MSDF（2015）、变量字体（2016）、FreeType v40（2016）</td></tr>
+<tr><td>2017–2026</td><td>WebRender（2019）、Pathfinder（2017–19）、piet-gpu/Vello（2020–）、Impeller（2023）、Skia Graphite（2025）</td><td>显示平面（KMS/MPO/HWC）成为仅存的固定功能 2D</td><td>Slug（2017）、macOS 移除次像素（2018）、COLRv1（2021）、Chrome 用 Rust Skrifa 替换 FreeType（2024–26）、Vello Sparse Strips（2026）</td></tr>
+</tbody></table></div>
+</section>
+<section id="s1">
+<h2><span class="num">01</span>2D 渲染管线包含什么</h2>
+<h3>1.1 阶段划分</h3>
+<p>2D 管线没有 3D 那样公认的"标准图"，但从 QuickDraw 到 Skia，所有实现都可以拆成下面这些阶段：</p>
+<pre>绘图命令(原语 + 属性)
+  → 几何: 点、线、矩形、多边形、椭圆、贝塞尔路径、文字(字形轮廓)
+  → 变换: 平移/缩放/旋转/斜切 (2×3 仿射矩阵)
+  → 裁剪: 矩形 → 区域(Region/HRGN) → 任意路径与蒙版
+  → 光栅化(扫描转换): 把几何变成像素集合或逐像素覆盖率
+  → 抗锯齿: 覆盖率(精确面积或超采样)
+  → 着色: 纯色、图案、渐变、图像纹理
+  → 合成: 光栅运算(ROP) 或 Porter–Duff alpha 混合
+  → 帧缓冲: 脏矩形、双缓冲、翻页 → 窗口合成 → 显示</pre>
+<p>关键在于"光栅化 + 合成"这两段的语义变化：早期系统把像素看作整数位，用布尔运算搬运；PostScript 之后把像素看作被路径部分覆盖的面积，用 alpha 混合。这个语义变化决定了硬件的命运。</p>
+<h3>1.2 经典算法一览</h3>
+<div class="tbl"><table><thead><tr><th>阶段</th><th>算法</th><th>年份 / 作者</th><th>说明</th></tr></thead><tbody>
+<tr><td>画线</td><td>Bresenham</td><td>1962 年在 IBM 设计，1965 年发表于 IBM Systems Journal</td><td>纯整数增量误差项，一直是固定功能画线引擎的基础</td></tr>
+<tr><td>画圆/椭圆</td><td>中点算法</td><td>Pitteway 1967；Van Aken 1984</td><td>常被误称为"Bresenham 圆算法"，最早文献是 Pitteway</td></tr>
+<tr><td>线段裁剪</td><td>Cohen–Sutherland</td><td>1967，飞行模拟器项目</td><td>区域编码快速剔除</td></tr>
+<tr><td>多边形裁剪</td><td>Sutherland–Hodgman</td><td>1974，CACM</td><td>逐边裁剪的可重入算法</td></tr>
+<tr><td>区域裁剪</td><td>QuickDraw Region / X11 Region / Windows HRGN</td><td>1983–</td><td>任意像素集合的压缩表示，Bill Atkinson 为重叠窗口发明并申请专利</td></tr>
+<tr><td>多边形填充</td><td>扫描线 + 活动边表</td><td>1970s</td><td>非零环绕 vs 奇偶两种填充规则；PostScript/SVG 默认非零</td></tr>
+<tr><td>抗锯齿线</td><td>Gupta–Sproull</td><td>1981，SIGGRAPH</td><td>按到理想线距离查表滤波</td></tr>
+<tr><td>抗锯齿线</td><td>吴晓林</td><td>1991，SIGGRAPH</td><td>每步画一对像素按距离加权，比 Bresenham 慢但支持非整数端点</td></tr>
+<tr><td>合成</td><td>Porter–Duff</td><td>1984，SIGGRAPH</td><td>over/in/out/atop/xor 代数与预乘 alpha；alpha 通道本身来自 Alvy Ray Smith 与 Ed Catmull（NYIT，1970 年代末）</td></tr>
+<tr><td>光栅运算</td><td>ROP3</td><td>Windows GDI，1985</td><td>对目标 D、图案 P、源 S 的 256 种布尔函数（SRCCOPY = CC、SRCAND = 88、PATCOPY = F0…），BitBlt/PatBlt/StretchBlt 均可指定</td></tr>
+</tbody></table></div>
+<h3>1.3 BitBLT：2D 管线的第一原语</h3>
+<p>BitBLT（bit block transfer，维基百科另给出 bit-boundary block transfer 的展开）于 <strong>1975 年 11 月</strong>在 Xerox PARC 由 Dan Ingalls、Larry Tesler、Bob Sproull、Diana Merry 为 Alto 上的 Smalltalk-72 编写，随后 Ingalls 用 Alto 微码重写。Alto（1973 年 3 月）"把位块传送操作确立为显示器的基本编程接口"。一次 BitBLT 定义为：源矩形、目标矩形、可选的半色调图案、裁剪矩形，以及一个组合函数（拷贝、与、或、异或等）。文字、光标、窗口移动、滚动、画线都归结为 BitBLT。Ingalls 在 1981 年 8 月的 Byte 杂志《The Smalltalk Graphics Kernel》中公开描述了它。</p>
+<p>这套"整数像素 + 布尔组合"模型直接被 QuickDraw（CopyBits）、GDI（BitBlt）和 X11（XCopyArea）继承，也直接定义了 1987–1996 年 2D 加速引擎的指令集。</p>
+<h3>1.4 成像模型的两个家族</h3>
+<div class="tbl"><table><thead><tr><th>家族</th><th>代表</th><th>像素语义</th><th>曲线</th><th>抗锯齿</th><th>透明</th></tr></thead><tbody>
+<tr><td><strong>位块/光栅运算模型</strong></td><td>Alto、QuickDraw（1983/84）、GDI（1985）、X11 核心协议（1987）</td><td>整数位或调色板索引</td><td>无（QuickDraw 只有直线、矩形、椭圆、多边形；GDI 在 NT 加了贝塞尔）</td><td>无</td><td>只有掩码/色键</td></tr>
+<tr><td><strong>路径/合成模型</strong></td><td>PostScript（1984）、NeWS（1986）、Display PostScript（1987）、Java 2D（1998）、XRender（2000）、GDI+（2001）、Quartz 2D（2001）、Cairo（2003）、Skia（2004）、Direct2D（2009）</td><td>浮点坐标下的覆盖率与 alpha</td><td>三次贝塞尔（PostScript/Quartz/Cairo）或二次（QuickDraw GX）</td><td>覆盖率抗锯齿</td><td>Porter–Duff</td></tr>
+</tbody></table></div>
+<p>演进顺序：</p>
+<ul>
+<li><strong>PostScript（1984）</strong>。Warnock 与 Geschke 的 Adobe 于 1982 年 12 月成立，PostScript 把一切（包括文字）表示为直线与三次贝塞尔组成的路径，用"模板/涂抹"模型填充，非零环绕规则，设备无关。它先服务打印机（LaserWriter 1985），随后 NeWS（Sun，1986）和 Display PostScript（NeXT 1987 年授权，1988 年随 NeXT 出货）把它搬到屏幕。</li>
+<li><strong>QuickDraw（1983/84）</strong>。源自 Lisa 的 LisaGraf，Atkinson 与 Hertzfeld 编写，纯光栅、区域裁剪、无贝塞尔。QuickDraw GX（1994）引入二次贝塞尔、3×3 变换与定点分数坐标，但随 Mac OS 8 被放弃。</li>
+<li><strong>X11（1987）→ XRender（2000）</strong>。核心协议没有抗锯齿和透明；Keith Packard 的 XRender 扩展（XFree86 4.0.1）加入 Porter–Duff 合成、服务器端字形和由客户端三角化后的梯形几何，动机正是核心协议"无法在不做读-改-写的情况下画透明或抗锯齿对象"。</li>
+<li><strong>GDI（1985）→ GDI+（2001）</strong>。GDI+ 随 Windows XP 加入抗锯齿、浮点坐标、渐变、alpha 与 PNG/JPEG，但完全软件渲染。Direct2D（2009）是其继任者。</li>
+<li><strong>Quartz 2D（2001）</strong>。1999 年 WWDC 以 Core Graphics Rendering 之名展示，Mac OS X 10.0 出货，绘图模型基于 PDF 1.4，部分原因是避免 Display PostScript 授权费。</li>
+<li><strong>Cairo（2003）</strong>、<strong>AGG</strong>（Maxim Shemanarev，2.5.0 为 2006 年）、<strong>Skia</strong>（Skia Inc. 2004 年成立于北卡，Google 2005 年收购，2008 年开源，Android/Chrome/Flutter 使用）是这一模型的三个通用开源实现。</li>
+</ul>
+<h3>1.5 抗锯齿路径光栅化的两种思路</h3>
+<div class="tbl"><table><thead><tr><th>思路</th><th>做法</th><th>代表</th></tr></thead><tbody>
+<tr><td>超采样</td><td>每像素 N×N 子采样点，数落在路径内的个数</td><td>Skia 早期 16× 超采样（<code>SkScan_AntiPath.cpp</code>，2006）</td></tr>
+<tr><td>精确面积累加</td><td>把路径每条边对每个像素单元贡献的<strong>有符号面积</strong>与<strong>覆盖</strong>累加，再按扫描线做前缀和得到环绕数与覆盖率</td><td>libart（Raph Levien）→ FreeType "smooth" 光栅器（David Turner，2000，头注明"基于 Raph Levien 的 LibArt"）→ AGG → font-rs（Levien，稠密累加缓冲 + SIMD）→ Vello Sparse Strips</td></tr>
+<tr><td>解析抗锯齿</td><td>只在整数 y、路径端点 y 和边交点处放扫描线，把路径分解为梯形并解析计算覆盖</td><td>Skia AAA（<code>SkScan_AAAPath.cpp</code>，2016，三角形只需约 3+H 条扫描线而非 4H）</td></tr>
+</tbody></table></div>
+<p>精确面积法的问题是"合并伪影"（conflation artifact）：相邻两个形状的覆盖率各为 50%，合成后不是 100% 而是 75%，出现接缝。这在 GPU 路径渲染器（Vello、Pathfinder）的设计讨论中反复出现。</p>
+<h3>1.6 从画家算法到合成</h3>
+<p>传统窗口系统（X11、Win9x GDI、经典 Mac）是<strong>单一帧缓冲 + 裁剪区域 + 画家顺序</strong>：每个窗口直接往帧缓冲里画，被遮挡的部分靠裁剪区域剔除，露出时要重画。合成式窗口系统给每个窗口一块<strong>离屏后备存储</strong>，最后由合成器按顺序叠加。一旦这样做，"最后一步"就精确等于 GPU 的本职：把每块后备存储当纹理，每个窗口画一个带纹理的四边形，混合、缩放、旋转、特效全部并行完成，损坏跟踪退化为重传脏矩形。这是 2D 迁往 3D 管线的第一道门。</p>
+</section>
+<section id="s2">
+<h2><span class="num">02</span>2D 硬件加速的演变：从专用引擎到 3D 管线</h2>
+<h3>2.1 第一阶段：固定功能 2D 引擎（1987–1996）</h3>
+<p>前一份报告《从帧缓冲到 GPU》已详述这一段，这里只列结论。IBM 8514/A（1987）是 PC 上第一块命令式绘图协处理器：BitBLT、Bresenham 画线、区域填充、单色到彩色扩展（文字）、剪裁矩形、光栅运算。S3 86C911（1991 年 6 月）把同样的操作集做进单芯片并卖给大众市场，"Windows 加速器"随之成为品类。TI TMS34010（1986）走了另一条路：一颗带 PIXBLT 指令的 32 位 CPU，一切都是软件，但成本过高。</p>
+<p>这一代硬件加速的对象与 GDI 驱动接口一一对应：BitBlt、PatBlt、ExtTextOut（颜色扩展）、Output（线/多边形）、光标、后来的视频覆盖层与缩放。X11 方面，XFree86 的 <strong>XAA</strong>（Harm Hanemaayer，1996，XFree86 3.3）把同样的操作抽象成驱动钩子。</p>
+<h3>2.2 第二阶段：语义错位（1998–2008）</h3>
+<p>问题在 1.4 节已经埋下：新的成像模型要的是抗锯齿、alpha 混合、任意路径、渐变，而 2D 引擎只会整数矩形上的布尔运算。结果是加速反而退化：</p>
+<ul>
+<li><strong>XRender（2000）与 EXA（2005）</strong>。XRender 的合成操作在大多数 2D 引擎上没有对应指令，XAA 只能把它交回 CPU。Zack Rusin 在 LinuxTag 2005 发布的 <strong>EXA</strong>（源自 kdrive 的 KAA）以"正确加速 XRender"为目标重新设计驱动架构，但底层硬件的 2D 引擎仍是瓶颈。</li>
+<li><strong>Windows Vista WDDM 1.0（2006）</strong>。GDI/GDI+ 在 Vista 上继续用软件渲染，画到系统内存表面，DWM 再把这些表面作为纹理合成。这意味着 Vista 的 GDI 反而比 XP 慢，DWM 还要为每个 GDI 表面保留一份系统内存副本。</li>
+<li><strong>Windows 7 WDDM 1.1（2009）</strong>。恢复了一小组 GDI 操作的硬件加速：BitBlt、ColorFill、AlphaBlend、StretchBlt、TransparentBlt、ClearTypeBlend，并把它们定义成内核驱动接口（DXGK_GDIARG_*）。注意这份清单：没有画线，没有多边形，没有路径；有的全是矩形与混合。它实际上是在 3D 引擎上实现的"矩形 + 混合"子集，GDI+ 完全不在其列。</li>
+</ul>
+<h3>2.3 第三阶段：窗口合成搬上 GPU（2002–2012）</h3>
+<div class="tbl"><table><thead><tr><th>系统</th><th>日期</th><th>做法</th></tr></thead><tbody>
+<tr><td>Mac OS X 10.0 Quartz Compositor</td><td>2001</td><td>首个主流软件合成窗口系统（CPU）</td></tr>
+<tr><td><strong>Mac OS X 10.2 Quartz Extreme</strong></td><td>2002 年 8 月 23 日</td><td>每个窗口的后备存储封装为 OpenGL 纹理，由 GPU 合成；只用 OpenGL 命令，要求 AGP 2× 与 16 MB 显存</td></tr>
+<tr><td>Xfwm（Xfce 4.2）</td><td>2005 年 1 月</td><td>X 上第一个合成管理器</td></tr>
+<tr><td>Compiz</td><td>2006 年 2 月</td><td>Novell/David Reveman，基于 Xgl/AIGLX 的 OpenGL 合成，"立方体桌面"</td></tr>
+<tr><td><strong>Windows Vista DWM</strong></td><td>2006 年 11 月</td><td>2003 年 WinHEC 展示；基于 Direct3D 9Ex 与 WPF 共享的 MIL 层；每窗口离屏缓冲，由后向前合成</td></tr>
+<tr><td>Core Animation</td><td>2007（Leopard，源自 iPhone 团队）</td><td>图层树由 GPU 合成与动画</td></tr>
+<tr><td>Wayland</td><td>2008 年起草，1.0 于 2012 年 10 月 22 日</td><td>Kristian Høgsberg；显示服务器与合成器合一，Weston 用 OpenGL ES 或 pixman 渲染</td></tr>
+<tr><td>Windows 8</td><td>2012</td><td>DWM 不可关闭（软件回退 WARP）；<strong>DirectComposition</strong> 让应用直接向合成器提交可视树；DXGI 1.2 <strong>翻转模型</strong>让 DWM 直接从应用后备缓冲合成，零拷贝</td></tr>
+<tr><td>Windows 8.1 WDDM 1.3</td><td>2013</td><td><strong>多平面覆盖（MPO）</strong>：视频、桌面、窗口各占一个硬件平面，由显示引擎混合，不经 GPU 渲染</td></tr>
+<tr><td>Android</td><td>2011–</td><td>SurfaceFlinger 用 OpenGL 合成，Hardware Composer（HWC）把能用覆盖平面的图层交给显示硬件以省电，其余回退到 GPU 客户端合成</td></tr>
+</tbody></table></div>
+<h3>2.4 第四阶段：绘图本身搬上 GPU（2005–2025）</h3>
+<div class="tbl"><table><thead><tr><th>系统</th><th>日期</th><th>做法</th><th>结果</th></tr></thead><tbody>
+<tr><td>Quartz 2D Extreme / QuartzGL</td><td>2005（Tiger）</td><td>把 Quartz 2D 绘图命令翻译成 OpenGL</td><td>因重绘错误与内核崩溃从未默认开启，10.5 改名 QuartzGL 后仍关闭</td></tr>
+<tr><td><strong>Direct2D</strong></td><td>2009（Win7，回移到 Vista）</td><td>建于 Direct3D 10.1 之上；CPU 变换路径并做受限梯形剖分，GPU 用逐原语覆盖率抗锯齿而非 MSAA；DirectWrite 负责文字</td><td>成功，成为 Windows 的标准 2D API</td></tr>
+<tr><td>Chrome GPU 合成</td><td>2010 年 8 月</td><td>图层分块，每块是一个四边形；Skia Ganesh 把 SkPicture 回放成 GL 命令</td><td>浏览器 GPU 化的起点</td></tr>
+<tr><td><strong>Android HWUI</strong></td><td>2011（3.0 Honeycomb）</td><td>Canvas/Paint/Shader 的大多数操作经 OpenGL ES 渲染，基于 Skia Ganesh；后加 Vulkan 后端</td><td>默认开启</td></tr>
+<tr><td><strong>Glamor</strong></td><td>2011 起，X.Org Server 1.16（2014）合入</td><td>Intel 的 Zhigang Gong：把 X render 原语翻译成 OpenGL，复用已有 3D 驱动；目标是"淘汰所有 DDX 2D 驱动"</td><td>成为 amdgpu/radeon/nouveau/modesetting 的默认 2D 路径，XAA 于 1.13 删除</td></tr>
+<tr><td><strong>WebRender</strong></td><td>2017 年 10 月公布，Firefox 67（2019 年 5 月 21 日）出货</td><td>"像 3D 游戏引擎一样渲染网页"：一切矩形批量成实例化四边形，先画不透明再画半透明利用 Z 剔除，渲染任务树，字形纹理缓存</td><td>Firefox 现行渲染器</td></tr>
+<tr><td><strong>Flutter Impeller</strong></td><td>iOS 默认于 3.10（2023 年 5 月），Android API 29+ 默认于 3.27</td><td>离线预编译着色器、预建管线状态对象，消除着色器编译卡顿；Metal/Vulkan/GLES 后端</td><td>取代 Skia 成为 Flutter 默认</td></tr>
+<tr><td><strong>Skia Graphite</strong></td><td>2025 年 7 月 8 日随 Chrome M134 在 Apple Silicon 上线</td><td>从头重写的 GPU 光栅化，建于 Dawn（WebGPU）之上，用深度测试削减过绘，多线程录制</td><td>MotionMark 1.3 提升约 15%</td></tr>
+</tbody></table></div>
+<h3>2.5 厂商删除或冻结 2D 引擎</h3>
+<ul>
+<li><strong>AMD/ATI</strong>：R600 / Radeon HD 2000（2007 年 5–6 月）起开源驱动的 EXA 路径用 3D 引擎与着色器实现 2D（r600_exa.c），X.Org 特性表从 Evergreen 起只列 Glamor。AMD 驱动开发者多次说明 R600 之后没有专用 2D 引擎，这一表述广为引用但本次未取得可直接引用的原文。</li>
+<li><strong>NVIDIA</strong>：公开类文档显示 2D 对象类逐代演进（NV1/NV3 的 ROP、CLIP、PATTERN、BLIT，G80 的统一 2D 类 0x502D），到 <strong>Fermi 的 0x902D（2010）之后再无新版本</strong>，此后所有世代继续暴露这同一个类；相比之下拷贝引擎类每代都更新（cl85b5 到 clcab5 共 13 版）。0x902D 仍定义 RenderSolidPrim（点/线/三角形/矩形）、PixelsFromMemory 缩放位块、SetRop、SetPatternSelect、SetClip、SetColorKey，即 1991 年 Windows 加速器的全部指令集。它在新芯片上是专用硅片还是内部由 3D 管线模拟，未见公开资料。</li>
+<li><strong>Intel</strong>：Xe 架构仍有拷贝/位块引擎（BCS），但用于内存搬运与清除（XY_BLOCK_COPY_BLT、XY_FAST_COLOR_BLT），不再用于绘图。</li>
+<li><strong>仍然保留的固定功能</strong>：拷贝/DMA 引擎；<strong>显示平面</strong>（Linux KMS 的 PRIMARY/CURSOR/OVERLAY 平面、Windows MPO、Android HWC 覆盖层）与硬件光标。它们存在的理由恰恰是<strong>避免</strong>一次 GPU 渲染：视频与光标由显示引擎在扫描输出时混合，功耗最低。</li>
+</ul>
+<h3>2.6 2D 原语到 3D 管线的映射</h3>
+<div class="tbl"><table><thead><tr><th>2D 引擎原语</th><th>3D 管线等价物</th><th>备注</th></tr></thead><tbody>
+<tr><td>矩形填充 / BitBLT</td><td>两个三角形（一个四边形），实例化批量绘制</td><td>Chrome 图块、WebRender 四边形；0x902D 本身也暴露 RECTS/TRIANGLES</td></tr>
+<tr><td>画线</td><td>细四边形或专用发丝线渲染器</td><td>Skia AAHairLine、DashLine</td></tr>
+<tr><td>图像位块 / 拉伸</td><td>带采样器过滤的纹理四边形</td><td>Quartz Extreme 把每个窗口当纹理</td></tr>
+<tr><td>剪裁矩形</td><td>剪刀矩形 / 模板缓冲；圆角等用蒙版纹理</td><td></td></tr>
+<tr><td>Porter–Duff 合成</td><td>混合状态</td><td></td></tr>
+<tr><td>光栅运算（XOR、AND…）</td><td>glLogicOp 的 16 种逻辑操作（对浮点缓冲无效），或在着色器中模拟</td><td>ROP 这一"2D 核心能力"在 GPU 上变成边缘功能</td></tr>
+<tr><td>单色到彩色扩展（文字）</td><td>字形纹理图集 + 纹理四边形</td><td>WebRender 字形缓存；DirectWrite 的 ClearType 混合在 GPU 上完成</td></tr>
+<tr><td>曲线与路径</td><td>CPU 剖分（Direct2D 梯形、Skia Triangulating）、模板后覆盖（NV_path_rendering、Skia Default/Tessellation）、隐式曲线着色器（Loop–Blinn）、距离场、计算着色器光栅化（Pathfinder、Vello）</td><td>见 2.7</td></tr>
+<tr><td>硬件光标 / 视频覆盖层</td><td><strong>仍是硬件</strong>：KMS 平面、MPO、HWC</td><td></td></tr>
+</tbody></table></div>
+<p>新的瓶颈随之而来：绘制调用与状态切换次数（WebRender 按原语类型分着色器，迫使批次拆分）、过绘（WebRender 先画不透明层）、纹理缓存抖动、着色器编译卡顿（Impeller 存在的理由）。</p>
+<h3>2.7 GPU 路径渲染：五种流派</h3>
+<div class="tbl"><table><thead><tr><th>流派</th><th>代表</th><th>年份</th><th>原理</th><th>代价</th></tr></thead><tbody>
+<tr><td>CPU 剖分</td><td>Direct2D、Skia TriangulatingPathRenderer</td><td>2009–</td><td>CPU 把路径切成梯形/三角形，GPU 光栅化并做逐原语覆盖率抗锯齿</td><td>剖分是 CPU 开销；动态路径每帧重算</td></tr>
+<tr><td>隐式曲线</td><td><strong>Loop–Blinn</strong>（微软研究院，SIGGRAPH 2005）</td><td>2005</td><td>用控制点作纹理坐标，像素着色器求隐式方程判断内外，分辨率无关</td><td>需要三角化，小字号下三角形过小</td></tr>
+<tr><td>模板后覆盖</td><td><strong>NV_path_rendering</strong>（Kilgard &amp; Bolz，2011 驱动，SIGGRAPH Asia 2012）</td><td>2011</td><td>第一步用模板缓冲累加环绕数，第二步画保守包围几何并按模板着色；与 3D 管线无缝集成</td><td>需要多次通过与模板缓冲，抗锯齿依赖 MSAA</td></tr>
+<tr><td>距离场</td><td>Valve SDF（2007）、MSDF（2015）</td><td>2007</td><td>预计算距离场纹理，着色器阈值化</td><td>尖角圆化（MSDF 缓解）、小尺寸质量差</td></tr>
+<tr><td>计算着色器</td><td><strong>Pathfinder</strong>（Patrick Walton，2017–2019）、<strong>piet-gpu / Vello</strong>（Raph Levien，2020–）</td><td>2017</td><td>整条管线在计算着色器上：场景编码 → 分块（16×16 或 256×256）→ 每块命令列表 → 精细光栅，精确分数覆盖（Pathfinder 相当于 256× AA）</td><td>需要计算着色器与原子操作；WebGL2 等平台不可用</td></tr>
+</tbody></table></div>
+<p>Skia Ganesh 的路径渲染器链按顺序尝试：DashLine → AAConvex → AAHairLine → AALinearizingConvex → AtlasPathRenderer（软件/GPU 蒙版图集）→ SmallPathRenderer（距离场）→ TriangulatingPathRenderer（CPU 剖分）→ TessellationPathRenderer（GPU 剖分/模板）→ DefaultPathRenderer（模板），一个渲染器就是上述五种流派的混合体。</p>
+<p>Vello 是最新的转折：2020 年 6 月的 piet-gpu 是纯计算着色器的"sort-middle"管线；到 2026 年，仓库里有三个渲染器，原始计算渲染器退到 research/ 目录标为实验性，主力变成共享 <strong>Sparse Strips</strong> 架构的 Vello CPU（多线程 SIMD，最成熟）与 Vello GPU（CPU 预处理路径 + GPU 光栅，不需要计算着色器，可跑 WebGL2）。Sparse Strips v0.1.0（2026 年 7 月 29 日）、v0.2.0（8 月 7 日）、Vello 0.10.0（8 月 14 日）。这个转向说明纯 GPU 计算方案在兼容性与小路径开销上仍不如 CPU/GPU 混合。</p>
+</section>
+<section id="s3">
+<h2><span class="num">03</span>字体渲染的演变</h2>
+<h3>3.1 点阵字体（1973–1990）</h3>
+<p><strong>字符发生器 ROM</strong>。文本模式显示卡里没有"渲染"这回事：CRTC 逐行扫描时用字符码索引 ROM，直接输出位图。</p>
+<div class="tbl"><table><thead><tr><th>适配器</th><th>年份</th><th>字符格</th><th>备注</th></tr></thead><tbody>
+<tr><td>IBM MDA</td><td>1981</td><td>9×14（字身 7×11）</td><td>80×25，720×350，固定 ROM 字体</td></tr>
+<tr><td>IBM CGA</td><td>1981</td><td>8×8</td><td>640×200，ROM 字体只能靠跳线切换，CP437</td></tr>
+<tr><td>IBM EGA</td><td>1984</td><td>8×14</td><td>可加载字符 RAM</td></tr>
+<tr><td>IBM VGA</td><td>1987</td><td>9×16（720×400）；另有 8×16、8×8</td><td>可加载字符 RAM</td></tr>
+</tbody></table></div>
+<p><strong>位图显示上的点阵字体</strong>。Xerox Alto（1973）与 Star（1981）用位图字体做 WYSIWYG；Macintosh（1984）随机附带约 12 款 Susan Kare 设计的点阵字体，比例宽度在个人电脑上是新鲜事。Chicago（原名 Elefont）是 12 磅系统字体直到 System 7.6；Geneva 提供 9、10、12、14、18、24 六个尺寸，且<strong>不同尺寸字形不同</strong>（9–12 磅的 i/j/l 带衬线），后来的轮廓版无法与之匹配。X11 用 Adobe 1987 年制定的 BDF（X Consortium 1988 年采用 2.1 版）与编译后的 PCF；Windows 用 .FON；Linux 控制台用 PSF。</p>
+<p><strong>优缺点</strong>。点阵字体渲染"极快极简"，每个像素由人手工调整，指定尺寸下输出完全可复现；代价是每个尺寸一套位图、无法缩放旋转、放大即锯齿。</p>
+<p><strong>笔画字体</strong>。Allen V. Hershey 约 1967 年在美国海军武器实验室（不是常说的 NBS，NBS/NIST 1976 年才发布数据）制作的 Hershey 字体用折线笔画描述字形，可缩放旋转，是 CAD、绘图仪与雕刻的标准，也是"矢量字体"最早的形态，但没有填充轮廓的概念。</p>
+<h3>3.2 轮廓字体与"字体战争"（1984–1996）</h3>
+<div class="tbl"><table><thead><tr><th>格式</th><th>年份</th><th>曲线</th><th>Hinting 模型</th><th>开放性</th></tr></thead><tbody>
+<tr><td><strong>PostScript Type 1</strong></td><td>1984/85（LaserWriter 1985 年 3 月）</td><td>三次贝塞尔</td><td><strong>声明式</strong>：<code>hstem</code>/<code>vstem</code> 字干、<code>BlueValues</code> 对齐区、<code>StdHW/StdVW</code> 标准字干宽、Flex、hint 替换；光栅器"智能地"解释</td><td>eexec + charstring 加密，1990 年 3 月才公开规范</td></tr>
+<tr><td>PostScript Type 3</td><td>1984</td><td>完整 PostScript</td><td>无 hint</td><td>开放</td></tr>
+<tr><td><strong>TrueType</strong></td><td>Apple 1991（3 月 System 6 附加件 / 5 月 System 7）；Windows 3.1（1992 年 4 月）</td><td>二次 B 样条（on/off 曲线点）</td><td><strong>命令式</strong>：字节码虚拟机，<code>fpgm</code> 定义函数、<code>prep</code> 按 ppem 设置控制值表 CVT、每个字形自带指令程序（MIRP/MIAP 等）；光栅器只是执行</td><td>规范公开；VM 部分被 Apple 专利覆盖至 2010 年 5 月</td></tr>
+<tr><td>Intellifont</td><td>1987 专利，HP PCL 5 / LaserJet III（1990）</td><td>—</td><td>—</td><td>Compugraphic/Agfa</td></tr>
+<tr><td>Bitstream Speedo</td><td>1980s</td><td>—</td><td>—</td><td>早期 X 支持，后删除</td></tr>
+<tr><td>TrueType GX → AAT</td><td>1994（QuickDraw GX）</td><td>二次</td><td>同 TrueType</td><td>变量轴、状态机排版；变量字体的祖先</td></tr>
+<tr><td><strong>OpenType</strong></td><td>1996（微软 TrueType Open 1994 + Adobe 1996）</td><td>TrueType <code>glyf</code>（二次）或 CFF Type 2（三次）</td><td>各自沿用</td><td>ISO/IEC 14496-22（2007）</td></tr>
+</tbody></table></div>
+<p><strong>字体战争的时间线</strong>：Adobe 的 Type 1 在 1985 年后统治桌面出版，但轮廓只住在打印机里，屏幕上用替代位图。Apple 1987 年底启动 Bass/Royal 项目，Sampo Kaasila 于 1989 年 8 月完成 TrueType，同年 9 月 Apple 与微软宣布结盟交叉授权。Adobe 的回应是 1989 年年中预告 <strong>Adobe Type Manager</strong>（在屏幕上任意尺寸光栅化 Type 1，并让非 PostScript 打印机可用），并在 <strong>1990 年 3 月公开 Type 1 规范</strong>。微软 1994 年未能获得 GX 排版授权后自研 TrueType Open，1996 年与 Adobe 合并为 OpenType，容纳两种轮廓，加上 GSUB/GPOS 排版表，战争结束。</p>
+<h3>3.3 点阵字体与 TrueType 字体的差异</h3>
+<div class="tbl"><table><thead><tr><th>维度</th><th>点阵字体</th><th>TrueType（轮廓字体）</th></tr></thead><tbody>
+<tr><td>表示</td><td>每尺寸一张位图，像素即最终结果</td><td>与分辨率无关的二次 B 样条轮廓，单位为 FUnit（如 2048/em）</td></tr>
+<tr><td>存储</td><td>尺寸 × 字符数 × 位图；六个尺寸就是六套</td><td>一套轮廓 + hint 程序，任意尺寸</td></tr>
+<tr><td>渲染</td><td>查表拷贝（BitBLT 或颜色扩展），无计算</td><td>缩放 → hint → 扫描转换 → （抗锯齿），每个字形每个尺寸都要算，故必须缓存</td></tr>
+<tr><td>缩放/旋转</td><td>不能，放大即锯齿，非整倍数畸变</td><td>任意变换</td></tr>
+<tr><td>小尺寸质量</td><td>最好，逐像素手工设计</td><td>取决于 hinting 质量；无 hint 时字干粗细随位置漂移、笔画丢失</td></tr>
+<tr><td>设计成本</td><td>每尺寸手工绘制</td><td>轮廓一次，但高质量 TrueType hint 需逐字形手工编程（Verdana 由 Tom Rickner 手工 hint）</td></tr>
+<tr><td>抗锯齿</td><td>无（或另存灰度位图）</td><td>覆盖率抗锯齿、次像素渲染自然可得</td></tr>
+<tr><td>典型场景</td><td>文本模式、早期 GUI、终端、嵌入式</td><td>1991 年后一切通用系统</td></tr>
+</tbody></table></div>
+<p>一个常被忽略的事实：TrueType 光栅化在小尺寸下的目标恰恰是<strong>模拟手工点阵字体的效果</strong>。TrueType 规范以 9 磅 Arial 的 "m" 为例说明字干与像素网格的相位偶然性会让笔画消失，grid fitting 的目标是字干粗细一致、颜色（灰度密度）均匀、间距一致、不丢点，并建议屏幕字体在 9 ppem 仍可读。</p>
+<h3>3.4 轮廓字体的光栅化算法</h3>
+<p>流程（按 TrueType 规范，对其他格式同样适用）：</p>
+<pre>FUnit 轮廓 → 缩放到设备像素: ppem = 磅值 × dpi / 72，26.6 定点
+  → grid fitting (hinting): 移动控制点使字干/对齐区落到像素边界
+  → 贝塞尔展平: 递归细分为线段
+  → 扫描转换: 像素中心在轮廓内(非零环绕)则点亮
+  → 丢点控制 (dropout control): 相邻像素中心之间同时出现进出交叉时补点，排除"残桩"
+  → 位图 / 覆盖率图</pre>
+<p><strong>为什么要 hinting</strong>。ppem 小于约 20 时，一条 1.3 像素宽的字干可能落成 1 像素或 2 像素，甚至因为两条边落在同一像素内而消失。hinting 把轮廓"捏"到网格上：字干统一为整数宽度，x 高度与基线对齐到像素行，过冲（overshoot）在小尺寸被压平。</p>
+<p><strong>两种 hinting 哲学</strong>：</p>
+<ul>
+<li><strong>Adobe（Type 1 / CFF）</strong>：字体只声明"这里是一条竖干、这些是对齐区"，光栅器自带算法做字干吸附与对齐区处理。字体制作便宜，效果取决于光栅器。</li>
+<li><strong>TrueType</strong>：字体携带完整程序，光栅器只是一台虚拟机。效果可以精确到"在 11 ppem 把这个点向上移 1/64 像素"，因此微软核心字体（Verdana、Georgia，1996，Matthew Carter 设计）在 Windows 上的小字号效果无人能及，但制作极其昂贵，且严重依赖特定光栅器的行为。</li>
+</ul>
+<p><strong>FreeType</strong>（David Turner 1995 年为 OS/2 开始，Pascal 编写，1997 年 Robert Wilhelm 移植到 C；2.0 于 2000 年模块化重写）是自由软件世界的光栅器。1999 年 Apple 提出专利问题后，字节码解释器默认关闭，发行版只能用 <strong>自动 hinter</strong>（分析轮廓并做轻度垂直吸附）；专利 2010 年 5 月到期，<strong>2.4.0（2010 年 7 月 12 日）默认开启字节码解释器</strong>。它的 "smooth" 光栅器输出覆盖率位图，用 1.5 节的精确面积累加法。Keith Packard 的 Xft 与 fontconfig 让 FreeType 的抗锯齿字形经 XRender 进入 X11。</p>
+<h3>3.5 抗锯齿与次像素渲染（1995–2010）</h3>
+<div class="tbl"><table><thead><tr><th>里程碑</th><th>日期</th><th>内容</th></tr></thead><tbody>
+<tr><td>Windows 95 Plus!</td><td>1995</td><td>"抗锯齿屏幕字体"，Windows 首次灰度平滑；此前只有二值</td></tr>
+<tr><td>Mac OS 8.5</td><td>1998 年 10 月</td><td>系统级字体平滑</td></tr>
+<tr><td><strong>ClearType 发布</strong></td><td>1998 年 11 月 COMDEX</td><td>Bert Keely 与 Greg Hitchcock 发明，John Platt 改进算法；2000 年 1 月随 Microsoft Reader 首发</td></tr>
+<tr><td>Displaced Filtering 论文</td><td>2000 年 5 月 SID</td><td>Platt、Keely、Bill Hill、Blinn、Whitted 等：逐通道预滤波后在次像素位置采样（"RGB 抽取"），消除相位误差并压制彩边频率</td></tr>
+<tr><td>Adobe CoolType</td><td>2000 年 2 月</td><td>Acrobat 的跨平台次像素渲染，支持 CFF</td></tr>
+<tr><td>Windows XP</td><td>2001</td><td>内置 ClearType，默认关闭</td></tr>
+<tr><td>Mac OS X</td><td>2001–</td><td>Quartz 以亚像素精度渲染，优先保留设计师字形而非对齐网格；LCD 次像素平滑随后加入</td></tr>
+<tr><td><strong>Windows Vista</strong></td><td>2007</td><td>ClearType 默认开启</td></tr>
+<tr><td>Joel Spolsky 文章</td><td>2007 年 6 月</td><td>概括两派：Apple "保留字体设计，哪怕有点模糊"，微软"把字形敲进像素边界以防模糊、提高可读性"，偏好主要来自习惯</td></tr>
+<tr><td>FreeType LCD 滤波</td><td>2.3（约 2006）</td><td>因 ClearType 专利默认不启用彩色滤波；2.8.1（2017）加入无需滤波的 Harmony 方法；专利 2019 年到期后 2.10.3 可用 ClearType 式滤波</td></tr>
+</tbody></table></div>
+<p>ClearType 的原理：把 LCD 每个像素的 R、G、B 条纹当作三个独立可寻址的亚像素，水平分辨率变成三倍（800×600 → 2400×600），再用人眼视觉模型选择亚像素亮度以抑制彩边。Steve Gibson 主张 Wozniak 1976 年的 Apple II 色彩伪影设计是次像素渲染的先例，主流记述认为那只是利用 NTSC 伪影，此说仍有争议。</p>
+<h3>3.6 布局与整形栈</h3>
+<p>字体渲染管线不只是光栅化。完整的文字栈是：<strong>字体加载与回退 → 整形（shaping：把字符序列按 GSUB/GPOS 变成字形序列与位置）→ 行布局 → 字形光栅化 → 合成</strong>。整形层的演变：Uniscribe（Windows 98 SE / 2000 / IE5）、ATSUI（Mac OS 8.5，1998）→ Core Text（10.5，2007）、Pango（Owen Taylor，2000 年命名，1.0 于 2002）、<strong>HarfBuzz</strong>（源于 FreeType 的 OpenType Layout 代码，2006 年独立，Behdad Esfahbod 2010–2012 年重写为 HarfBuzz NG，2013 年进入 Android，1.0 于 2015）。DirectWrite（2009）引入<strong>亚像素定位</strong>（字形可从任意亚像素位置起笔）与大字号的 y 方向抗锯齿，并把 ClearType 混合放到 GPU 上（Direct2D 的 DrawGlyphRun 硬件加速"从合并字形到应用 ClearType 混合算法的全部阶段"）。</p>
+<h3>3.7 GPU 时代的文字渲染（2005–2026）</h3>
+<div class="tbl"><table><thead><tr><th>技术</th><th>作者 / 年份</th><th>原理</th><th>优点</th><th>缺点</th></tr></thead><tbody>
+<tr><td><strong>字形图集</strong></td><td>普遍（Skia Ganesh、WebRender、Android HWUI、Direct2D）</td><td>CPU 用 FreeType/DirectWrite/CoreText 光栅化字形，打包进纹理图集，GPU 画纹理四边形</td><td>质量等同 CPU，hinting 与次像素全保留</td><td>每个尺寸/变换一份；旋转缩放时模糊；图集抖动</td></tr>
+<tr><td><strong>Loop–Blinn</strong></td><td>微软研究院，SIGGRAPH 2005</td><td>字形三角化，控制点作纹理坐标，像素着色器求隐式方程</td><td>分辨率无关</td><td>三角化开销，小字号下三角形过小</td></tr>
+<tr><td><strong>有符号距离场 SDF</strong></td><td>Chris Green，Valve，SIGGRAPH 2007</td><td>从高分辨率二值图生成距离场（如 4096² → 64×64），存 8 位通道，着色器阈值化或 smoothstep；Team Fortress 2 使用</td><td>极小存储、任意缩放、可做描边/发光</td><td>尖角被圆化，小尺寸质量差</td></tr>
+<tr><td><strong>多通道 SDF（MSDF）</strong></td><td>Viktor Chlumský，2015 硕士论文，msdfgen</td><td>三个通道分别编码距离，几乎完美复现尖角</td><td>解决尖角</td><td>分析步骤复杂，复杂字形有新伪影</td></tr>
+<tr><td>矢量纹理</td><td>Will Dobbie，2016</td><td>字形按网格分格，每格存相交贝塞尔索引，着色器向多个方向投射射线求覆盖率</td><td>精确</td><td>复杂</td></tr>
+<tr><td><strong>Slug</strong></td><td>Eric Lengyel，JCGT 2017</td><td>直接从字形轮廓在 GPU 上算抗锯齿覆盖，按水平带分桶贝塞尔曲线，无预计算纹理或距离场，任意仿射/透视变换下像素精确，避免分支发散</td><td>无图集、任意变换、精确</td><td>商业库；着色器较重</td></tr>
+<tr><td>模板后覆盖</td><td>NV_path_rendering，2011/12</td><td>把字形当路径，模板累加环绕数后覆盖</td><td>与 3D 集成</td><td>多次通过、依赖 MSAA</td></tr>
+<tr><td>计算着色器</td><td>Pathfinder（2017–19）、Vello（2020–，2026 年新增 glifo 字形与涂料 crate）</td><td>整条路径光栅化在 GPU 计算上，精确分数覆盖</td><td>无图集、精确、大量文字批处理</td><td>需计算着色器；小字号仍常回退 CPU 光栅</td></tr>
+</tbody></table></div>
+<p>浏览器的现实选择很保守：Chrome 的 Skia 在 <code>src/text/gpu/</code> 里是 StrikeCache 图集加 SDF 用于大字号或变换文字；Firefox WebRender 的字形由平台 API（CoreText/FreeType/DirectWrite）在 CPU 光栅化后缓存到 GPU 纹理，次像素抗锯齿仅在不透明目标上启用（用双源混合或双通道实现）。也就是说，<strong>2026 年主流文字渲染仍是"CPU 光栅化 + GPU 合成"</strong>，Slug/Vello 一类纯 GPU 方案主要在游戏与新框架中。</p>
+<h3>3.8 高分屏的反作用：去 hinting、去次像素（2010–2018）</h3>
+<ul>
+<li>Retina 于 2010 年（iPhone 4）与 2012 年（MacBook Pro）到来后，200+ ppi 让 1 像素的相位误差不再可见。<strong>macOS Mojave（2018 年 9 月 24 日）移除次像素文字渲染</strong>；Quartz 此前已基本忽略 hint。</li>
+<li>微软从 Windows 8 起在文档中明确"多数情况下应使用灰度抗锯齿"，UWP/XAML 用灰度，因为"质量与 ClearType 相当但快得多"，也因为 ClearType 无法用于透明合成层。</li>
+<li><strong>FreeType 2.7（2016 年 9 月）</strong>把 v40 TrueType 解释器设为默认：忽略所有水平方向 hint 指令，只保留垂直对齐，得到 ClearType/DirectWrite 风格输出；v40 是 Infinality 补丁（v38）的精简版。</li>
+<li>词干加深（stem darkening）在 Adobe CFF 引擎（2013）实现，但因 X11 栈缺少线性空间混合与伽马校正而默认关闭。</li>
+</ul>
+<p>结论：hinting 与次像素渲染是<strong>低分辨率时代的补偿技术</strong>；分辨率上去之后，行业回到"忠实渲染轮廓 + 灰度覆盖率"，这反而让 GPU 方案（不需要 hint VM、不需要 RGB 滤波）更容易落地。</p>
+<h3>3.9 字体格式的新发展（2011–2026）</h3>
+<div class="tbl"><table><thead><tr><th>项目</th><th>日期</th><th>内容</th></tr></thead><tbody>
+<tr><td>彩色字体</td><td>sbix（OS X 10.7，2011）、COLR/CPAL（Windows 8.1，2013）、CBDT/CBLC（Google）、SVG（Adobe + Mozilla，ISO 2015）；四者均入 OpenType 1.7；Windows 10 周年更新（2016）首个全部支持</td><td>表情符号驱动</td></tr>
+<tr><td><strong>变量字体</strong></td><td>OpenType 1.8，2016 年 9 月 14 日（微软、Adobe、Apple、Google 于 ATypI 华沙）；<code>fvar/gvar/avar/HVAR/MVAR/STAT/CFF2</code></td><td>TrueType GX 变量轴的复活</td></tr>
+<tr><td>COLRv1</td><td>OpenType 1.9，2021 年 12 月：渐变、变换、合成模式、形状复用；Chrome 98（2022）出货；Noto Emoji 从 9 MB CBDT 降到 1.85 MB</td><td></td></tr>
+<tr><td>WOFF / WOFF2</td><td>WOFF 1.0 W3C 推荐 2012 年 12 月（zlib）；WOFF2 推荐 2018 年 3 月（Brotli）</td><td>Web 字体：Safari 3.1 / Firefox 3.5（2008–09）支持 @font-face，Google Fonts 2010</td></tr>
+<tr><td>DWriteCore</td><td>Windows App SDK</td><td>DirectWrite 重实现，向下兼容 Windows 10 1809</td></tr>
+</tbody></table></div>
+<h3>3.10 2024–2026：Rust 字体栈与 GPU 渲染器的现状</h3>
+<ul>
+<li><strong>Chrome 用 Skrifa 替换 FreeType</strong>（Google fontations 项目，Rust）：Chrome 128（2024 年 8 月）彩色字体与 CFF2，Chrome 133（2025 年 2 月）Linux/Android/ChromeOS 全部 Web 字体，Chrome 136 系统字体，<strong>Chrome 145 从 Blink 中完全移除 FreeType</strong>。理由是内存安全，Google 估计 FreeType 的安全维护占至少 0.25 全职人力。</li>
+<li><strong>HarfRust</strong>：HarfBuzz 组织下的 Rust 移植，基于 read-fonts，跟踪 HarfBuzz 14.3.1；HarfBuzz 本身 14.4.0（2026 年 8 月）。</li>
+<li><strong>Linebender 栈</strong>：Parley（富文本布局）依赖 Fontique（枚举/回退）、HarfRust（整形）、Skrifa（轮廓）、ICU4X；Bevy 的 bevy_text 已改用 Parley。Vello 0.7.0（2026 年 1 月）→ 0.10.0（8 月），Sparse Strips 0.1/0.2（7–8 月）。</li>
+<li><strong>Skia Graphite</strong> 2025 年 7 月在 Chrome M134 上线，但公告未提及文字渲染的改变。</li>
+<li><strong>游戏</strong>：Slug 授权给 ZeniMax Online、Blizzard、Quantic Dream、Fatshark 等；Unity TextMeshPro 推荐 SDF 图集作为默认字体资产类型。</li>
+</ul>
+</section>
+<section id="s4">
+<h2><span class="num">04</span>汇合：每一种 2D 操作在各时代跑在哪里</h2>
+<div class="tbl"><table><thead><tr><th>操作</th><th>1985 软件</th><th>1991 专用 2D 引擎</th><th>2001 GDI+/XRender</th><th>2006 合成时代</th><th>2012 3D 管线绘图</th><th>2026</th></tr></thead><tbody>
+<tr><td>矩形填充 / BitBLT</td><td>CPU</td><td><strong>2D 引擎</strong></td><td>2D 引擎（整数）/ CPU（alpha）</td><td>2D 引擎或 3D</td><td><strong>3D：实例化四边形</strong></td><td>3D</td></tr>
+<tr><td>画线</td><td>CPU</td><td>2D 引擎</td><td>CPU（抗锯齿）</td><td>CPU</td><td>3D：细四边形</td><td>3D</td></tr>
+<tr><td>抗锯齿路径</td><td>CPU</td><td>CPU</td><td>CPU（精确面积）</td><td>CPU</td><td>CPU 剖分 + 3D，或模板后覆盖</td><td>3D 计算着色器 / CPU+GPU 混合</td></tr>
+<tr><td>字形光栅化</td><td>点阵查表</td><td>2D 引擎颜色扩展</td><td>CPU（FreeType/GDI）</td><td>CPU</td><td>CPU → 图集 → 3D 合成</td><td>仍主要 CPU → 图集；SDF/Slug/Vello 在游戏与新框架</td></tr>
+<tr><td>文字合成（ClearType 混合）</td><td>—</td><td>—</td><td>CPU</td><td>CPU / Win7 起 GPU</td><td><strong>3D 像素着色器</strong></td><td>3D（多为灰度）</td></tr>
+<tr><td>窗口合成</td><td>CPU 画家算法</td><td>CPU</td><td>CPU</td><td><strong>3D：纹理四边形</strong></td><td>3D + 显示平面</td><td>3D + 显示平面</td></tr>
+<tr><td>视频覆盖 / 光标</td><td>—</td><td>2D 引擎覆盖层</td><td>覆盖层</td><td>覆盖层</td><td>显示平面</td><td><strong>显示平面（仍是固定功能）</strong></td></tr>
+</tbody></table></div>
+<p>三条线在 2026 年汇合成一个事实：除了扫描输出时的显示平面混合，<strong>2D 已没有专用硬件</strong>；一切绘图都是三角形、纹理与着色器，2D API（Direct2D、Skia、Core Graphics、Vello）只是 3D API 上的一层软件。字体是这层软件里最后仍主要依赖 CPU 光栅化的部分，原因不在硬件，而在小字号下像素级质量与 hinting、次像素渲染这些"历史包袱"，而高分屏正在慢慢卸下这些包袱。</p>
+</section>
+<section id="s5">
+<h2><span class="num">05</span>主要参考来源</h2>
+<ul>
+<li>Ingalls, "The Smalltalk Graphics Kernel", Byte, 1981 年 8 月；Wikipedia: Bit blit、Xerox Alto、Xerox Star</li>
+<li>Bresenham, IBM Systems Journal 1965；Pitteway 1967；Cohen–Sutherland（Newman &amp; Sproull 1973）；Sutherland &amp; Hodgman, CACM 1974；Wu, SIGGRAPH 1991；Porter &amp; Duff, "Compositing Digital Images", SIGGRAPH 1984</li>
+<li>Microsoft Learn: Ternary Raster Operations；GDI Hardware Acceleration（WDDM 1.1）；DXGI flip model；Multiplane Overlay；DirectComposition；Introducing DirectWrite；Improving Direct2D Performance；ClearType；TrueType Fundamentals（OpenType 规范 ttch01）；OpenType Spec Changes</li>
+<li>Adobe Type 1 Font Format 规范（1990）；Microsoft Research: Displaced Filtering for Patterned Displays（SID 2000）；Loop &amp; Blinn, "Resolution Independent Curve Rendering", SIGGRAPH 2005</li>
+<li>Kilgard &amp; Bolz, "GPU-accelerated Path Rendering", SIGGRAPH Asia 2012；NVIDIA open-gpu-doc classes/twod（cl902d.h）与 dma-copy；envytools 图形类文档</li>
+<li>Green, "Improved Alpha-Tested Magnification for Vector Textures and Special Effects", SIGGRAPH 2007；Chlumský 硕士论文 2015；Lengyel, "GPU-Centered Font Rendering Directly from Glyph Outlines", JCGT 2017；Dobbie 2016</li>
+<li>FreeType 源码 ftgrays.c、CHANGES、patents 页、subpixel-hinting 与 text-rendering-general 文档；Skia 源码 SkScan_AAAPath.cpp、PathRendererChain.cpp、src/text/gpu；WebRender text-rendering.md；font-rs、Vello、Pathfinder、Parley、HarfRust、fontations 仓库</li>
+<li>Raph Levien: piet-gpu 博客（2020）；Mozilla Hacks: The whole web at maximum FPS（2017）；Chromium: GPU Accelerated Compositing in Chrome、Introducing Skia Graphite（2025）、Memory-safe fonts（2025）、COLRv1 fonts（2022）</li>
+<li>Laurence Penney, TrueType history；Joel Spolsky, Font smoothing, anti-aliasing, and sub-pixel rendering（2007）；GRC: Who invented sub-pixel rendering</li>
+<li>Wikipedia：QuickDraw、PostScript、Display PostScript、NeWS、XRender、Cairo、Skia、AGG、Quartz Compositor、Desktop Window Manager、Compiz、Xfwm、Wayland、EXA、Glamor、XAA、Radeon HD 2000、TrueType、OpenType、PostScript fonts、Adobe Type Manager、Font hinting、Font rasterization、ClearType、Subpixel rendering、FreeType、HarfBuzz、Uniscribe、Core Text、Pango、macOS Mojave、Retina display、WOFF、Hershey fonts、各点阵字体条目</li>
+<li>X.Org：RadeonFeature、X11R7.7 fonts 文档；Linux 内核 DRM KMS 文档；Android source: Graphics、Implementing HWC；Android 3.0 Highlights；Flutter 3.10 发布说明与 Impeller 文档</li>
+</ul>
+</section>
+<footer><p>本地副本：research/2D渲染管线与字体渲染进化史.md　·　姊妹篇：<a href="https://claude.ai/artifact/Gm6Fz44ChbEWzgZLb1323a">从帧缓冲到 GPU（1968–1999）</a>、<a href="https://claude.ai/artifact/KaodE2u3PGsSshYsuvYNPj">NVIDIA 三十年</a></p></footer>
+</div>
