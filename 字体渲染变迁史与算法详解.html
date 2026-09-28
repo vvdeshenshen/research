@@ -1,0 +1,527 @@
+<title>从点阵到着色器的字形</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F5F4F0; --surface:#FCFBF8; --ink:#1B1A17; --muted:#615E56; --rule:#D9D6CE;
+  --accent:#1F6F78; --accent-soft:#DCEBEC; --accent-ink:#175860;
+  --mobile:#A33A6B; --mobile-soft:#F1DDE7;
+  --code:#ECEAE3; --grid:#E4E1D8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15140F; --surface:#1D1C16; --ink:#EAE7DF; --muted:#A39F93; --rule:#2F2D25;
+    --accent:#6FC3CB; --accent-soft:#173A3E; --accent-ink:#8FD3D9;
+    --mobile:#E07AA9; --mobile-soft:#3E1F2E;
+    --code:#22211A; --grid:#2A2820;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15140F; --surface:#1D1C16; --ink:#EAE7DF; --muted:#A39F93; --rule:#2F2D25;
+  --accent:#6FC3CB; --accent-soft:#173A3E; --accent-ink:#8FD3D9;
+  --mobile:#E07AA9; --mobile-soft:#3E1F2E;
+  --code:#22211A; --grid:#2A2820;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Public Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16.5px;line-height:1.75;padding-block:0 6rem;padding-inline:clamp(16px,4vw,40px)}
+.wrap{max-width:940px;margin:0 auto}
+a{color:var(--accent-ink)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:"Newsreader","Songti SC","Noto Serif SC",serif;font-size:clamp(2rem,5vw,3.3rem);line-height:1.12;margin:.5rem 0 1rem;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:1.1rem;max-width:66ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"JetBrains Mono",monospace;font-size:.76rem;color:var(--muted)}
+/* glyph pipeline hero */
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5em,1fr));gap:4px;margin:2rem 0 .6rem}
+.pipe div{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:.55rem .6rem;font-size:.76rem;line-height:1.35}
+.pipe div b{display:block;font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--accent);margin-bottom:.15rem;letter-spacing:.04em}
+.pipe div span{display:block;color:var(--muted);font-size:.7rem;margin-top:.25rem}
+.pipe div span.m{color:var(--mobile)}
+.pipe-key{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);display:flex;gap:1.5rem;flex-wrap:wrap}
+.pipe-key i{display:inline-block;width:.9em;height:.9em;border-radius:50%;vertical-align:-.1em;margin-right:.4em}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:940px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.8rem;font-family:"JetBrains Mono",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+section{padding-block:3rem 0}
+h2{font-family:"Newsreader","Songti SC","Noto Serif SC",serif;font-size:1.75rem;font-weight:600;margin:0 0 1rem;letter-spacing:-.01em;text-wrap:balance}
+h2 .num{font-family:"JetBrains Mono",monospace;font-size:.76rem;color:var(--accent);display:block;letter-spacing:.14em;margin-bottom:.35rem;font-weight:500}
+h3{font-size:1.14rem;font-weight:600;margin:2.2rem 0 .6rem;text-wrap:balance;padding-left:.7rem;border-left:3px solid var(--accent)}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:600}
+code{font-family:"JetBrains Mono",monospace;font-size:.86em;background:var(--code);padding:.05em .35em;border-radius:3px}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:4px;overflow-x:auto;font-family:"JetBrains Mono",monospace;font-size:.78rem;line-height:1.55;max-width:100%}
+blockquote{margin:1.25rem 0;padding:.9rem 1.1rem;border-left:3px solid var(--accent);background:var(--surface);max-width:72ch}
+blockquote p{margin:.3rem 0;color:var(--muted)}
+.tbl{overflow-x:auto;margin:1.1rem 0 1.6rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.84rem;line-height:1.45;min-width:640px}
+th,td{padding:.5rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:600;font-size:.74rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap}
+td:first-child{font-weight:500}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+td code{white-space:nowrap}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Font rendering · PC &amp; mobile · 1981–2026</div>
+  <h1>从点阵到着色器的字形：字体渲染变迁史与算法详解</h1>
+  <p class="lede">一个字形从字体文件到屏幕像素要经过十几步。这份报告按 PC 与移动端两条线讲每一步是怎么变的，并把 hinting、扫描转换、抗锯齿、伽马、次像素与 GPU 文字渲染写到指令、公式与源码常量的层面。</p>
+  <div class="meta"><span>整理：2026-09-28</span><span>数据来自规范、源码、论文与官方文档</span><span>未能一手核实处随文注明</span></div>
+
+  <div class="pipe">
+    <div><b>01 加载 · 整形</b>GSUB/GPOS，字符 → 字形<span>PC: Uniscribe → DirectWrite / HarfBuzz</span><span class="m">移动: Core Text / Minikin + HarfBuzz</span></div>
+    <div><b>02 缩放</b>ppem = 磅 × dpi / 72，26.6 定点<span>PC: 96 dpi 起步</span><span class="m">移动: 163 → 458 ppi</span></div>
+    <div><b>03 hinting</b>TrueType 指令 / CFF 声明 / 自动<span>PC: 完整 → 只垂直 (v40)</span><span class="m">移动: 忽略 (iOS) / 轻度 (Android)</span></div>
+    <div><b>04 扫描转换</b>非零环绕；丢点控制 / 精确面积<span>PC: ftgrays · 微软 2.x</span><span class="m">移动: Core Graphics · FreeType</span></div>
+    <div><b>05 抗锯齿</b>灰度 A8 / LCD 3× / RGBA<span>PC: ClearType 6×1 → 灰度回归</span><span class="m">移动: 始终灰度</span></div>
+    <div><b>06 伽马 · 对比</b>线性混合或预混 LUT<span>PC: WPF 1.9 · Skia sRGB</span><span class="m">移动: CG 2.0 · HWUI 1.4</span></div>
+    <div><b>07 缓存 · 图集</b>天际线 / 货架 / 列式打包<span>PC: Direct2D · Skia</span><span class="m">移动: HWUI CacheTexture · Impeller</span></div>
+    <div><b>08 合成</b>alpha 混合 / 双源混合<span>PC: GDI 位块 → DWM</span><span class="m">移动: Core Animation · HWUI 一开始就是 GPU</span></div>
+  </div>
+  <div class="pipe-key"><span><i style="background:var(--accent)"></i>PC 线</span><span><i style="background:var(--mobile)"></i>移动端线</span></div>
+</header>
+</div>
+
+<nav class="toc"><ol><li><a href="#s0">总览</a></li><li><a href="#s1">数据与坐标</a></li><li><a href="#s2">PC 时代变迁史（1981–2026）</a></li><li><a href="#s3">hinting</a></li><li><a href="#s4">扫描转换 · 抗锯齿</a></li><li><a href="#s5">GPU 文字</a></li><li><a href="#s6">移动端变迁史（1996–2026）</a></li><li><a href="#s7">汇合</a></li><li><a href="#s8">主要参考来源</a></li></ol></nav>
+
+<div class="wrap">
+<blockquote>
+<p>这是《2D 渲染管线与字体渲染进化史》第 3 章的展开版：把字体渲染的变迁按 PC 与移动端两条线讲完，并把主要算法写到指令、公式与源码常量的层面。数据来自 OpenType/TrueType 规范、Adobe Type 1/Type 2 规范、FreeType 与 Skia 源码、Android 与 Apple 官方文档、原始论文；来源有分歧或未能核实处随文注明。整理日期：2026-09-28。</p>
+</blockquote>
+<section id="s0">
+<h2><span class="num">00</span>总览</h2>
+<h3>0.1 一个字形从文件到像素要经过什么</h3>
+<pre>字体文件 (TTF/OTF/CFF/WOFF2)
+  → 加载与回退: 选字体、选字形集 (fontconfig / DirectWrite / Core Text / Minikin)
+  → 整形 (shaping): 字符序列 → 字形序列 + 位置 (GSUB/GPOS; HarfBuzz / Uniscribe / Core Text)
+  → 行布局: 换行、连字符、对齐 (Blink / TextKit / Minikin)
+  ─────────────── 以下是"光栅化"，每个 (字体, 尺寸, 变换, 亚像素偏移) 组合做一次并缓存 ───────────────
+  → 缩放: FUnit → 26.6 定点像素, ppem = 磅 × dpi / 72
+  → hinting (网格对齐): TrueType 指令 / CFF 声明式 hint / 自动 hinter / 忽略
+  → 贝塞尔展平 → 扫描转换: 单色(丢点控制) 或 覆盖率(精确面积)
+  → 抗锯齿输出: A8 灰度 / LCD 3× 水平 / 彩色 RGBA
+  → 伽马与对比修正: 线性混合 或 预混 LUT
+  → 字形缓存 / 纹理图集
+  → 合成: CPU alpha 混合 或 GPU 纹理四边形 (灰度 alpha / 分量 alpha 双源混合)
+  → 显示: 像素矩阵 (RGB 条纹 / PenTile / 电子墨水)</pre>
+<p>四十五年的变迁可以概括为：<strong>光栅化从查表变成计算，hinting 从"必需"变成"可选"，抗锯齿从无到灰度到彩色又回到灰度，合成从 CPU 位块搬到 GPU 纹理，而光栅化本身在 2026 年仍主要留在 CPU</strong>。</p>
+<h3>0.2 两条线的时代划分</h3>
+<div class="tbl"><table><thead><tr><th>时代</th><th>PC</th><th>移动端</th></tr></thead><tbody>
+<tr><td>点阵</td><td>1981–1991：字符 ROM、Mac/X11/Windows 点阵字体</td><td>1996–2007：Palm、Nokia S40、J2ME、日本手机 12×12 表情</td></tr>
+<tr><td>轮廓 + hinting</td><td>1991–1995：TrueType（Win 3.1、System 7）、ATM、二值光栅化 + 丢点控制</td><td>2000–2007：Pocket PC 的 Reader ClearType、Symbian 的 FreeType 字体服务器、嵌入式光栅器（Font Fusion、iType）</td></tr>
+<tr><td>抗锯齿</td><td>1995–2009：Win95 Plus! 灰度、ClearType（1998 发布、2007 默认）、FreeType 平滑光栅器、Quartz 亚像素定位</td><td>2007–2010：iPhone 灰度抗锯齿、Android 1.0 的 FreeType + Skia + Droid</td></tr>
+<tr><td>亚像素定位与 GPU 图集</td><td>2009–2016：DirectWrite、Core Text、HWUI/Direct2D 字形图集、Skia 预混伽马</td><td>2010–2015：Retina 与 PenTile、Roboto、HarfBuzz NG、Minikin、HWUI FontRenderer</td></tr>
+<tr><td>高分屏与去 hint</td><td>2016–2026：FreeType v40、Mojave 去次像素、变量字体、COLRv1、Chrome 用 Rust Skrifa 替换 FreeType</td><td>2015–2026：San Francisco 变量字体、Noto CJK 变量、COLRv1 表情、Impeller 图集、Vulkan</td></tr>
+</tbody></table></div>
+</section>
+<section id="s1">
+<h2><span class="num">01</span>数据与坐标：光栅化的输入</h2>
+<h3>1.1 缩放公式与定点数</h3>
+<ul>
+<li>字体单位 FUnit 范围 −16384 到 16383；<code>unitsPerEm</code> 推荐为 2 的幂（TrueType 常用 2048，CFF 常用 1000）。</li>
+<li><code>ppem = pointSize × dpi / 72</code>；<code>像素坐标 = FUnit × ppem / unitsPerEm</code>。规范例子：2048 upem、18 磅、72 dpi 下 550 FUnit = 4.83 像素。</li>
+<li>像素坐标保留到 1/64 像素，即 <strong>F26Dot6</strong>（26 位整数 + 6 位小数）。控制值表 CVT 在指令中读出的永远是 26.6 像素；<code>WCVTF</code> 以 FUnit 写入，<code>WCVTP</code> 以像素写入。</li>
+<li>FreeType 的平滑光栅器内部再上采样 4 倍：<code>PIXEL_BITS = 8</code>，<code>ONE_PIXEL = 256</code>。</li>
+</ul>
+<h3>1.2 轮廓表示</h3>
+<div class="tbl"><table><thead><tr><th></th><th>TrueType <code>glyf</code></th><th>CFF / Type 1 / CFF2</th></tr></thead><tbody>
+<tr><td>曲线</td><td>二次 B 样条：on/off 曲线点任意组合，连续两个 off 点之间隐含一个 on 点，连续两个 on 点是直线</td><td>三次贝塞尔（<code>rrcurveto</code> 等）</td></tr>
+<tr><td>填充规则</td><td>非零环绕，点序递增时右侧为填充区</td><td>非零环绕</td></tr>
+<tr><td>升级三次到二次</td><td>一条三次通常要 2–4 条二次近似</td><td>—</td></tr>
+<tr><td>变量字体</td><td><code>gvar</code> 逐点增量</td><td><code>CFF2</code> 混合操作符</td></tr>
+</tbody></table></div>
+<h3>1.3 缓存键：为什么一个字形会被光栅化很多次</h3>
+<p>Skia 的 <code>SkScalerContextRec</code> 决定一个"strike"（一套光栅化参数）：字体、字号、2×2 变换矩阵、标志（亚像素定位、LCD 垂直、BGR、由 LCD 生成 A8、hinting 等级、加粗）、掩码格式（BW/A8/LCD16/ARGB）、对比度、设备伽马、以及<strong>文字颜色的亮度位</strong>（用于预混伽马）。加上 <code>SkPackedGlyphID</code> = 字形 ID + 2 位 X 亚像素偏移 + 2 位 Y 亚像素偏移。所以同一个字形在不同颜色、不同 1/4 像素偏移、不同变量字体轴值下都是不同的缓存项。这是理解后面所有"缓存爆炸"讨论的基础。</p>
+</section>
+<section id="s2">
+<h2><span class="num">02</span>PC 时代变迁史（1981–2026）</h2>
+<h3>2.1 点阵时代（1981–1991）</h3>
+<p>文本模式显示卡没有渲染：CRTC 逐行扫描时用字符码查 ROM 直接输出位图（MDA 9×14、CGA 8×8、EGA 8×14、VGA 9×16，EGA/VGA 可加载字符 RAM）。位图显示上的点阵字体（Mac 1984 的 Chicago/Geneva、X11 BDF 1987/PCF、Windows .FON）由人逐像素设计，Geneva 的 9–24 磅六个尺寸字形各不相同。渲染就是 BitBLT 或单色到彩色扩展，2D 加速引擎（8514/A、S3 911）的"颜色扩展"指令正是为它设计的。</p>
+<h3>2.2 轮廓与 hinting 时代（1991–1995）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>事件</th><th>光栅器</th></tr></thead><tbody>
+<tr><td>1989</td><td>Adobe Type Manager 在屏幕上光栅化 Type 1</td><td>Adobe 私有</td></tr>
+<tr><td>1991-05</td><td>Apple System 7 内置 TrueType（3 月已有 System 6 附加件）</td><td>Apple 光栅器 v1/v2</td></tr>
+<tr><td>1992-04</td><td>Windows 3.1 内置 TrueType</td><td>微软 16 位光栅器 1.0（GETINFO 版本 3）</td></tr>
+<tr><td>1993</td><td>Windows NT 3.1</td><td>重写的 32 位光栅器 1.5，"新扫描转换器"（版本 33）</td></tr>
+<tr><td>1995-08</td><td>Windows 95 / NT 3.51</td><td>1.66，加入灰度字体平滑（版本 34）</td></tr>
+<tr><td>1995–1997</td><td>David Turner 开始 FreeType（OS/2，Pascal，1997 年改 C）</td><td>FreeType 1</td></tr>
+<tr><td>2000</td><td>FreeType 2.0 模块化重写</td><td>平滑光栅器 ftgrays.c</td></tr>
+</tbody></table></div>
+<p>这一时期输出是<strong>二值位图</strong>，质量完全取决于 hinting：微软核心字体（Arial、Times New Roman、Verdana、Georgia）由 Monotype 逐字形手工编写 TrueType 指令，目标是在 9–16 ppem 复现点阵字体的清晰度。</p>
+<h3>2.3 抗锯齿与 ClearType（1995–2009）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>事件</th></tr></thead><tbody>
+<tr><td>1995</td><td>Windows 95 Plus! 灰度字体平滑；1.7 光栅器（版本 35）加入 4 个幻影点</td></tr>
+<tr><td>1998-10</td><td>Mac OS 8.5 系统级字体平滑</td></tr>
+<tr><td>1998-11</td><td>ClearType 在 COMDEX 发布（Bert Keely、Greg Hitchcock；John Platt 的滤波器）</td></tr>
+<tr><td>2000</td><td>Platt "Optimal filtering for patterned displays"（IEEE SPL）与 "Displaced filtering"（SID）；Microsoft Reader 首发 ClearType；Adobe CoolType</td></tr>
+<tr><td>2001</td><td>Windows XP：ClearType 1.8（版本 37），默认关闭；Mac OS X Quartz 亚像素定位，忽略 hint</td></tr>
+<tr><td>2002</td><td>Mac OS X 10.2 加入 <code>CGContextSetShouldSmoothFonts</code> 的 LCD 平滑</td></tr>
+<tr><td>2005</td><td>Mac OS X 10.5 SDK 出现 <code>CGContextSetShouldSubpixelPositionFonts</code> 等亚像素定位 API</td></tr>
+<tr><td>2007</td><td>Windows Vista：ClearType 默认开启；Core Text 公开</td></tr>
+<tr><td>2009</td><td>Windows 7：DirectWrite（亚像素定位、y 方向抗锯齿、"自然"布局）、ClearType 调谐器；2.1 光栅器（版本 40）对称/灰度 ClearType</td></tr>
+<tr><td>2010-07</td><td>FreeType 2.4.0 默认开启字节码解释器（Apple 专利 5 月到期）</td></tr>
+</tbody></table></div>
+<h3>2.4 GPU 图集与预混伽马（2009–2016）</h3>
+<p>Direct2D（2009）把 DirectWrite 光栅化的字形放进内部图集，ClearType 混合在像素着色器完成；Skia（Chrome、Android）用 <code>SkMaskGamma</code> 预混查找表在不做线性混合的合成器上"伪造"伽马正确；Android HWUI（2011）的 FontRenderer 把 Skia 字形打包进 GL 缓存纹理。这一时期的共同点：<strong>光栅化仍在 CPU，GPU 只做合成</strong>。</p>
+<h3>2.5 高分屏与去 hint（2012–2026）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>事件</th></tr></thead><tbody>
+<tr><td>2012</td><td>Retina MacBook Pro</td></tr>
+<tr><td>2013-05</td><td>FreeType 2.4.12 加入 Adobe 捐赠的 CFF 引擎（Dave Arnold），2.5 起默认，含词干加深</td></tr>
+<tr><td>2016-09</td><td>FreeType 2.7：v40 解释器默认，忽略所有 x 方向 hint；OpenType 1.8 变量字体</td></tr>
+<tr><td>2017-09</td><td>FreeType 2.8.1：Harmony LCD 方法，无需彩色滤波</td></tr>
+<tr><td>2018-09</td><td>macOS Mojave 移除次像素文字渲染</td></tr>
+<tr><td>2019</td><td>ClearType 滤波专利到期，FreeType 2.10.3 可用 ClearType 式滤波</td></tr>
+<tr><td>2020</td><td>macOS Big Sur 移除"字体平滑"开关，<code>CGFontRenderingFontSmoothingDisabled</code> 失效</td></tr>
+<tr><td>2021-12</td><td>OpenType 1.9 COLRv1</td></tr>
+<tr><td>2024–2026</td><td>Chrome 128/133/136/145 逐步用 Rust 的 Skrifa 替换 FreeType，145 起 Blink 完全移除 FreeType；HarfRust；Vello Sparse Strips</td></tr>
+</tbody></table></div>
+</section>
+<section id="s3">
+<h2><span class="num">03</span>算法详解 I：hinting（网格对齐）</h2>
+<h3>3.1 为什么需要 hinting</h3>
+<p>ppem 小于约 20 时，一条 1.3 像素宽的字干可能落成 1 像素或 2 像素，甚至两条边落在同一像素内而消失。TrueType 规范用 9 磅 Arial 的 "m" 举例：字干与像素网格的相位是"偶然效应"。grid fitting 的目标：字干粗细一致、灰度密度均匀、间距一致、不丢点，并让屏幕字体在 9 ppem 仍可读。</p>
+<h3>3.2 TrueType 指令虚拟机</h3>
+<p><strong>三个程序</strong>：<code>fpgm</code>（字体程序，运行一次，用 <code>FDEF</code>/<code>IDEF</code> 定义函数与自定义操作码）、<code>prep</code>（CVT 程序，ppem 或变换改变时运行，初始化控制值表与图形状态）、每个字形自带的指令。每个程序开始时栈清空；图形状态在每个字形前重置（"字形之间没有记忆"）。<code>maxp</code> 表声明 VM 规模：maxZones、maxTwilightPoints、maxStorage、maxFunctionDefs、maxStackElements 等。</p>
+<p><strong>图形状态</strong>（默认值）：</p>
+<div class="tbl"><table><thead><tr><th>变量</th><th>默认 / 语义</th></tr></thead><tbody>
+<tr><td>projection_vector</td><td>测量方向；<code>SVTCA[a]</code> a=1 为 x、a=0 为 y，同时设置自由向量</td></tr>
+<tr><td>dual_projection_vector</td><td><code>SDPVTL</code> 设置，在<strong>原始轮廓</strong>上测量、在已对齐轮廓上投影</td></tr>
+<tr><td>freedom_vector</td><td>移动方向，不得与投影向量垂直</td></tr>
+<tr><td>rp0、rp1、rp2</td><td>参考点（<code>SRP0/1/2</code>）</td></tr>
+<tr><td>zp0、zp1、zp2</td><td>区域指针：区域 1 为字形，区域 0 为"暮光区"（twilight，无轮廓的辅助点）</td></tr>
+<tr><td>round_state</td><td>RTG=1 取整到网格、RTHG=0 半格、RDTG=3 向下、RUTG=4 向上、ROFF=5 不取整；<code>SROUND</code> 可自定义周期/相位/阈值</td></tr>
+<tr><td>control_value_cut_in</td><td><strong>17/16 像素</strong>（<code>SCVTCI</code>）</td></tr>
+<tr><td>single_width_cut_in / value</td><td>0（<code>SSWCI</code>、<code>SSW</code>）</td></tr>
+<tr><td>minimum_distance</td><td><strong>1 像素</strong>（<code>SMD</code>）</td></tr>
+<tr><td>loop</td><td>1（<code>SLOOP</code>，被 SHP、SHPIX、IP、ALIGNRP 消耗）</td></tr>
+<tr><td>delta_base / delta_shift</td><td>9 / 3（<code>SDB</code>、<code>SDS</code>）</td></tr>
+<tr><td>auto_flip</td><td>TRUE：CVT 符号自动匹配测量符号</td></tr>
+</tbody></table></div>
+<p><strong>关键指令</strong>：</p>
+<div class="tbl"><table><thead><tr><th>指令</th><th>操作码</th><th>语义</th></tr></thead><tbody>
+<tr><td><code>MDAP[a]</code></td><td>0x2E/2F</td><td>设 rp0=rp1=p；a=1 按 round_state 取整 p，a=0 仅"触碰"</td></tr>
+<tr><td><code>MIAP[a]</code></td><td>0x3E/3F</td><td>沿投影向量把 p 移到 CVT[n]；a=1 时若 CVT 值与原位置差 &gt; cut-in 则改用原位置取整</td></tr>
+<tr><td><code>MDRP[abcde]</code></td><td>0xC0–DF</td><td>把 p 移到与 rp0 距离等于原轮廓距离处；b 强制最小距离，c 取整，de 距离类型（灰/黑/白，黑白经引擎补偿）</td></tr>
+<tr><td><code>MIRP[abcde]</code></td><td>0xE0–FF</td><td>同 MDRP，但目标距离 = CVT[n]。<strong>cut-in 测试</strong>：若 &#124;CVT[n] − 原距离&#124; &lt; control_value_cut_in 用 CVT 值，否则用轮廓距离；再应用最小距离与取整</td></tr>
+<tr><td><code>MSIRP[a]</code></td><td>0x3A/3B</td><td>距离从栈取，忽略 cut-in 与 round_state</td></tr>
+<tr><td><code>IP</code></td><td>0x39</td><td>沿自由向量插值：<code>new = rp1 + (rp2 − rp1) × (orig_p − orig_rp1) / (orig_rp2 − orig_rp1)</code></td></tr>
+<tr><td><code>SHP[a]</code> / <code>SHPIX</code></td><td>0x32/33 / 0x38</td><td>按参考点移动量平移 p / 按显式 26.6 量平移</td></tr>
+<tr><td><code>ALIGNRP</code></td><td>0x3C</td><td>把 p 到 rp0 的投影距离归零</td></tr>
+<tr><td><code>IUP[a]</code></td><td>0x30/31</td><td><strong>插值未触碰点</strong>：每条轮廓上夹在两个已触碰点之间的点按比例插值，之外的点跟随平移</td></tr>
+<tr><td><code>DELTAP1/2/3</code></td><td>0x5D/71/72</td><td>逐 (ppem, 点) 例外：ppem = delta_base + 高半字节（P2 加 16，P3 加 32）；步长 = 低半字节（−8…+8，不含 0）× 2^(6 − delta_shift)，默认 1/8 像素</td></tr>
+<tr><td><code>INSTCTRL</code></td><td>0x8E</td><td>选择器 1 禁止网格对齐，2 忽略 CVT 程序的图形状态改动，3 值 4 = "原生 ClearType"关闭向后兼容 hack</td></tr>
+<tr><td><code>GETINFO</code></td><td>0x88</td><td>返回光栅器版本与环境：位 0–7 引擎版本，位 8 旋转，位 9 拉伸，位 12 灰度平滑（≥ v34），位 13 ClearType（≥ v36），位 15 对称平滑，位 16 BGR，位 17 亚像素定位（≥ v39），位 19 灰度 ClearType（≥ v40）</td></tr>
+</tbody></table></div>
+<p><strong>字干统一的机制</strong>：字干的第二条边用 <code>MIRP[…R…]</code> 引用一个 CVT 字干宽度项（例如 cvt 12 = 157 FUnit "x 字干粗细"）。当缩放后的 CVT 值与轮廓距离之差在 cut-in（17/16 像素）内，取整后的 CVT 值胜出，于是整个字体的所有字干得到同一个整数像素宽；<code>minimum_distance</code>（1 像素）防止字干消失；<code>single_width_cut_in</code> 在极小尺寸把所有受控宽度收敛到一个值。规范例子：cut-in 17/16 让 J 的底部曲线一直贴着基线到 81 ppem，82 ppem 起回到轮廓位置。</p>
+<p><strong>幻影点</strong>（光栅器 ≥ 1.7）：每个字形末尾附加 4 个点（左侧承、前进宽度、上原点、前进高度）。指令移动它们会改变"设备相关"的前进宽度，这就是 hinting 能改变字距的原因。<code>hdmx</code> 表按 ppem 缓存 uint8 前进宽度让布局不必跑光栅器；<code>LTSH</code> 记录每个字形从哪个 ppem 起宽度线性缩放（判据：ppem ≥ 50 且取整线性宽与取整 hint 宽之差 ≤ 2%）。</p>
+<p><strong>gasp 表</strong>：按 ppem 区间指定行为，位 0x0001 GRIDFIT、0x0002 DOGRAY、0x0004 SYMMETRIC_GRIDFIT、0x0008 SYMMETRIC_SMOOTHING；典型：&lt; 9 ppem 只灰度不对齐，9–16 只对齐不灰度，&gt; 16 两者都开，&gt; 15 ppem 对称平滑。</p>
+<h3>3.3 ClearType 时代的"向后兼容"与 FreeType 的 v35/v38/v40</h3>
+<p>ClearType 让 hinting 网格在 x 方向变成 <strong>16 个子采样</strong>（"TrueType 的实际水平分辨率是 y 方向的十六倍"），y 方向仍是 1。为了让为二值渲染编写的旧 hint 不破坏 ClearType 输出，微软光栅器进入"向后兼容模式"：取整指令（RTG、RTHG、MDAP[R]、MIAP[R]、MDRP[R]、ROUND）取整到 1/16 网格；<code>SCVTCI</code> 的 cut-in 缩到 1/16，<code>SMD</code> 最小距离缩到 1/2；所有 DELTAP 跳过（除非作用于非 ClearType 方向已触碰的点）；并识别 TypeMan Talk 的特定函数签名（DStroke/IStroke 函数 64–66、间距函数 0/1/2/4/7/8、VacuFormRound、对角线函数 58）直接禁用。字体用 <code>INSTCTRL</code> 选择器 3 声明"原生 ClearType"可关闭这些 hack。</p>
+<p>FreeType 的对应：</p>
+<div class="tbl"><table><thead><tr><th>解释器</th><th>对应微软版本</th><th>行为</th></tr></thead><tbody>
+<tr><td>v35</td><td>1.7（Windows 98）</td><td>只有灰度与二值，完整执行所有指令</td></tr>
+<tr><td>v38 "Infinality"</td><td>—</td><td>逐字体 hack，从未默认，已删除并别名到 40</td></tr>
+<tr><td><strong>v40</strong>（2.7 起默认，2016）</td><td>2.1，"约等于 DirectWrite ClearType"</td><td>四大 hack：(1) <strong>忽略所有 x 轴点移动</strong>（<code>Direct_Move</code> 中 <code>if (!backward_compatibility) cur[point].x += …</code>）；(2) IUP[x] 与 IUP[y] 之后不再移动点（对角线移动的 x 分量除外）；(3) <code>SHPIX</code>/<code>DELTAP</code> 只在移动复合字形的 y 或已 y 触碰点时执行；(4) 忽略 hdmx 与幻影点修改，前进宽度不变</td></tr>
+</tbody></table></div>
+<p>所以 v40 的名字"subpixel hinting"名不副实：它没有亚像素 hinting，只是<strong>只做垂直 hinting</strong>。2.14/2.15 加入 <code>native_cleartype_x</code> 模式模拟 1/16 像素虚拟网格。</p>
+<h3>3.4 Type 1 / CFF 的声明式 hint</h3>
+<p><strong>Charstring 中的 hint</strong>：<code>hstem y dy</code>（操作码 1）、<code>vstem x dx</code>（3）声明字干区；<code>hstem3</code>/<code>vstem3</code> 声明三条等距等宽字干（m、Ξ）。同一 hint 集内的区不得重叠，否则用 <strong>hint 替换</strong>（<code>OtherSubrs[3]</code>，序列 <code>subr# 1 3 callothersubr pop callsubr</code>）在轮廓中途换一套。<strong>Flex</strong>（<code>OtherSubrs[0..2]</code>）：两段贝塞尔组成的浅弧，外端点共 x（或 y），弧高 ≤ 20 单位；设备空间弧高低于阈值时替换为直线。Type 2 用 <code>flex</code>（深度 &lt; fd/100 像素时拉直）、<code>hflex</code>/<code>hflex1</code>/<code>flex1</code>（fd 固定 50，即 0.5 像素）；<code>hintmask</code>/<code>cntrmask</code> 每个字干一位，最多 96 条；幽灵 hint 宽度 −20（上/右边）、−21（下/左边）。</p>
+<p><strong>Private 字典参数</strong>：</p>
+<div class="tbl"><table><thead><tr><th>参数</th><th>语义</th></tr></thead><tbody>
+<tr><td><code>BlueValues</code></td><td>≤ 7 对；第一对是基线底区，其余是顶区（x 高度、大写高度等），每对 = (平边, 过冲边)</td></tr>
+<tr><td><code>OtherBlues</code> / <code>FamilyBlues</code></td><td>≤ 5 对底区 / 跨家族共享区（FreeType：家族边在 1 像素内时替换）</td></tr>
+<tr><td><code>BlueScale</code></td><td>默认 0.039625 = 300 dpi 下 10 磅。<strong>缩放比（像素/单位）&lt; BlueScale 时压制过冲</strong>，即 <code>BlueScale = (磅值 − 0.49) / 240</code>；约束 <code>(磅值 − 0.49) × 最大区高 &lt; 240</code>，保证压制在过冲达 1 像素前结束</td></tr>
+<tr><td><code>BlueShift</code></td><td>默认 7：超过 BlueScale 尺寸后，离平边 ≥ BlueShift 单位的特征才过冲，更近的只有在设备空间 ≥ 1/2 像素时过冲</td></tr>
+<tr><td><code>BlueFuzz</code></td><td>默认 1：区向外扩 ±fuzz 单位以捕获字干边（Adobe 建议 0）</td></tr>
+<tr><td><code>StdHW</code>/<code>StdVW</code>、<code>StemSnapH/V</code></td><td>主宽度各一个，吸附宽度表各 ≤ 12 个</td></tr>
+<tr><td><code>ForceBold</code></td><td>允许粗体的 1 像素字干加厚</td></tr>
+<tr><td><code>LanguageGroup</code> 1</td><td>CJK 反白控制（ExpansionFactor）</td></tr>
+</tbody></table></div>
+<p><strong>Adobe/FreeType CFF 引擎的算法</strong>（psblues.c、pshints.c，2013 年由 Adobe 的 Dave Arnold 捐赠）：</p>
+<ol>
+<li><code>cf2_blues_init</code>：若 <code>scale &lt; blueScale</code> 则 <code>suppressOvershoot = TRUE</code>，并加一个 <code>boost = 0.6 − 0.6 × scale / blueScale</code>（上限 0.5 像素，加深时禁用）后取整平边；BlueScale 被钳制使任何区不超过 1 像素。</li>
+<li><code>cf2_blues_capture</code>：字干边落在 <code>[底 − fuzz, 顶 + fuzz]</code> 内即被捕获；压制时吸附到平边；否则若 <code>csTop − csCoord ≥ blueShift</code> 则至少离平边 1 像素；否则取整到最近像素。两条边同移同量并<strong>锁定</strong>。</li>
+<li><code>cf2_hintmap_build</code>：优先级 = 合成 em 框 hint（CJK）→ 被蓝区捕获的锁定 hint → hintmask 中其余 hint；重叠/相触的丢弃。</li>
+<li><code>cf2_hintmap_adjustHints</code>：第一遍自下而上把每条边吸附到像素边界，同时尊重前一条边与 <code>CF2_MIN_COUNTER</code>（反白最小值，合成边旁豁免）；第二遍自上而下重试。</li>
+<li><code>cf2_hintmap_map</code>：字符空间坐标在相邻 hint 边之间线性插值（外部均匀缩放）。<strong>只做 y 方向</strong>，x 不动，这正是"light"模型。</li>
+</ol>
+<p><strong>词干加深</strong>（<code>cf2_computeDarkening</code>，"仿 Adobe Avalon 光栅器的 5 段曲线"）：x = 字干宽 × ppem（千分之一像素），y = 加深量（千分之一像素），默认断点 <strong>(500,400)、(1000,275)、(1667,275)、(2333,0)</strong>：字干 ≤ 0.5 像素加深 0.4 像素，1–1.667 像素加深 0.275，≥ 2.333 不加深，之间线性；结果每侧减半后换回字体单位。x 用 <code>StdVW</code>（缺省 75/1000 em），y 用 <code>StdHW</code>。FreeType 2.6.2 起对 cff/type1/autofit <strong>默认关闭</strong>，因为它需要线性空间混合与伽马校正，否则"字形显得又重又糊"。</p>
+<h3>3.5 FreeType 自动 hinter（aflatin.c / afhints.c）</h3>
+<ol>
+<li><strong>蓝区</strong>：从参考字符串取垂直极值：大写顶 <code>THEZOCQS</code>、大写底 <code>HEZLOCUS</code>、小写 f 顶 <code>fijkdbh</code>、x 高度顶 <code>uvxzoesc</code>、小写底 <code>nrxzoesc</code>、下延 <code>pqgjy</code>。每个字形的极值按 on 点跨度 ≥ <code>upem/14</code> 判为平边否则圆边；<code>ref = 平边中位数</code>，<code>shoot = 圆边中位数</code>。区在缩放后高度 &lt; 3/4 像素时"激活"，压制过冲（相当于 BlueScale）。</li>
+<li><strong>标准宽度</strong>：hint 字形 <code>o</code>，收集相连字干宽度，按 <code>upem/100</code> 阈值排序量化，<code>widths[0]</code> 为标准宽。</li>
+<li><strong>线段</strong>：沿轮廓走，出方向等于主轴方向的连续点构成一段（<code>AF_DIR_UP/DOWN/LEFT/RIGHT</code>），记录 <code>pos</code>、<code>delta</code>、<code>height</code>、端点为控制点时标 ROUND。</li>
+<li><strong>连接</strong>：方向相反且重叠 ≥ 常量的段配对，评分 <code>dist_demerit + 6000/overlap</code>，<code>dist_demerit = delta²/3000</code>，互为最佳 = 字干，单向 = 衬线。</li>
+<li><strong>边</strong>：把 <code>edge_distance_threshold</code>（≤ 1/4 像素）内的段聚成边，跳过短于 1 像素或宽于 1/2 像素的段；边与蓝区在 <code>max(upem/40 × scale, 1/2 像素)</code> 内即吸附，圆边偏好 <code>shoot</code>。</li>
+<li><strong>hint 边</strong>：(a) 先对齐蓝区边作锚；(b) 相连字干 <code>stem.pos = base.pos + compute_stem_width(dist)</code>，≤ 1.5 像素的字干用居中取整"巫术"（偏移 32），不会把字干压到 1/4 像素以下；小写 m 对称修正；(c) 衬线随基边移动，最小 1/2 像素；(d) 其余边在已 hint 的邻居间插值。</li>
+<li><strong><code>compute_stem_width</code></strong>：light 分支不吸附该轴：衬线 &lt; 3 像素不动；圆字干 &lt; 80 单位 → 64；&lt; 56 → 56；与 <code>widths[0]</code> 相差 &lt; 40 单位则用标准宽（最小 48）；&lt; 3 像素时小数部分量化（δ&lt;10 保留，&lt;32 加 10，&lt;54 加 54）；≥ 3 像素按 ppem 相关的双取整修正。强分支：<strong>垂直永远取整到整数像素</strong>（<code>(dist+16)&amp;~63</code>，最小 64），水平抗锯齿时 &lt; 48 取 <code>(dist+64)&gt;&gt;1</code>，48–128 只在失真 &lt; 1/4 像素时取整"以防 LCD 彩边"。</li>
+<li><strong>点对齐</strong>：<code>align_edge_points</code> 把段上所有点吸到边位置并标 TOUCH；<code>align_strong_points</code>（拐角/拐点）在边之间插值；<code>align_weak_points</code> = IUP：范围外平移、范围内 <code>u = u1 + (u−v1)(u2−u1)/(v2−v1)</code>。</li>
+<li><strong>模式</strong>：<code>FT_LOAD_TARGET_NORMAL</code> 两轴吸附；<code>LIGHT</code> "只在 y 轴吸附，如 FreeType 的 CFF 引擎或微软 ClearType"（2.7 起优先用驱动的原生垂直 hinting）；<code>MONO</code> 强 + 二值；<code>LCD</code>/<code>LCD_V</code>。fontconfig：hintnone/hintslight/hintmedium/hintfull，lcdfilter none/default/light/legacy，rgba rgb/bgr/vrgb/vbgr/none。</li>
+</ol>
+<h3>3.6 三种 hinting 模型对比</h3>
+<div class="tbl"><table><thead><tr><th></th><th>TrueType 指令</th><th>Type 1 / CFF 声明</th><th>自动 hinter</th></tr></thead><tbody>
+<tr><td>智能在哪</td><td>字体里的程序</td><td>光栅器里的算法</td><td>光栅器里的分析器</td></tr>
+<tr><td>精度</td><td>可到"某 ppem 下某点移 1/64 像素"（DELTAP）</td><td>字干与对齐区级</td><td>边级</td></tr>
+<tr><td>制作成本</td><td>极高（手工编程）</td><td>低（多数可自动生成）</td><td>零</td></tr>
+<tr><td>x 方向</td><td>完整（v35）或忽略（v40/DirectWrite）</td><td>传统全做；Adobe 引擎只做 y</td><td>light 只做 y</td></tr>
+<tr><td>变量字体</td><td>增量应用后再跑指令，<code>cvar</code> 变 CVT；ttfautohint 不支持</td><td>天然兼容</td><td>兼容</td></tr>
+<tr><td>高分屏</td><td>收益消失，Apple 完全忽略</td><td>同</td><td>同</td></tr>
+</tbody></table></div>
+</section>
+<section id="s4">
+<h2><span class="num">04</span>算法详解 II：扫描转换、抗锯齿、伽马与次像素</h2>
+<h3>4.1 单色扫描转换与丢点控制</h3>
+<p>TrueType 规范的规则：</p>
+<div class="tbl"><table><thead><tr><th>规则</th><th>内容</th></tr></thead><tbody>
+<tr><td>1</td><td>像素中心在轮廓内（非零环绕：射线交叉，on 转换 −1、off 转换 +1）则点亮</td></tr>
+<tr><td>2</td><td>轮廓恰好穿过像素中心则点亮</td></tr>
+<tr><td>3 简单丢点</td><td>相邻两个像素中心之间的线段同时被一个 on 转换和一个 off 转换穿过，且两个像素都未点亮，则点亮左（水平）/下（垂直）那个</td></tr>
+<tr><td>4</td><td>仅当轮廓继续穿过相邻扫描线时应用规则 3（排除"残桩"）</td></tr>
+<tr><td>5 / 6 智能丢点</td><td>点亮<strong>离两个转换中点最近</strong>的像素，含/不含残桩</td></tr>
+</tbody></table></div>
+<p><code>SCANTYPE n</code>：0 = 规则 1,2,3；1 = 1,2,4；2/3/6/7 = 只有 1,2；4 = 1,2,5；5 = 1,2,6。<code>SCANCTRL</code> 位 0–7 是 ppem 阈值，位 8–10 在 ppem ≤ 阈值 / 旋转 / 拉伸时启用。FreeType 的 ftraster.c 把轮廓分解为"剖面"（每条扫描线的交点数组）做垂直与水平两遍扫描，<code>dropOutControl</code> 位 0 排除残桩、位 1 忽略丢点、位 2 智能取整（<code>SMART(p,q) = FLOOR((p+q+precision×63/64) &gt;&gt; 1)</code>）。</p>
+<h3>4.2 精确面积覆盖：FreeType 平滑光栅器</h3>
+<p>ftgrays.c（David Turner，2000，"基于 Raph Levien 的 libart"）：单遍、无中间位图、无排序、整数运算。</p>
+<ul>
+<li>每个被线段穿过的像素单元记录 <code>{x, cover, area}</code>，按扫描线链表存放。</li>
+<li>对单元内的每一小段：<code>cover += Δy</code>，<code>area += Δy × (fx1 + fx2)</code>，其中 fx1、fx2 是段两端在单元内的 x 位置，所以 <strong>area 是有符号梯形面积的两倍</strong>。</li>
+<li>扫描：单元的覆盖 <code>coverage = area &gt;&gt; 9</code>（即 <code>&gt;&gt; (2 × PIXEL_BITS + 1 − 8)</code>）；单元右侧直到下一单元的整段覆盖 = <code>cover × 2 × ONE_PIXEL − cell.area</code> 折算。</li>
+<li>填充规则：<code>fill = 0x100</code>（奇偶）或 <code>INT_MIN</code>（非零）；<code>if (coverage &amp; fill) coverage = ~coverage</code>；非零时 <code>coverage &gt; 255</code> 钳到 255。奇偶规则在 256 处折返，非零规则钳位。输出 256 级灰度。</li>
+<li>二次曲线展平：偏差 <code>dx = max(|x0 + x2 − 2x1|, |y0 + y2 − 2y1|)</code>，<code>while (dx &gt; ONE_PIXEL/4) { dx &gt;&gt;= 2; 分段数 &lt;&lt;= 1; }</code>，每次二分把偏差降 4 倍。三次曲线在 <code>|2P0 − 3P1 + P3|</code> 或 <code>|P0 − 3P2 + 2P3|</code> 超过 <code>ONE_PIXEL/2</code> 时继续分割。</li>
+</ul>
+<h3>4.3 同一思想的三次演化：font-rs、Skia AAA、Vello Sparse Strips</h3>
+<p><strong>font-rs</strong>（Raph Levien，2016）：把"扫描线顺序上有符号面积的有限差分"直接写进稠密累加缓冲，最后一遍做累积和、取绝对值、钳位、×255。窄情形（线段落在一个像素列内）：<code>xmf = 0.5 × (x + xnext) − x0floor</code>，<code>a[x0] += d − d × xmf</code>，<code>a[x0+1] += d × xmf</code>（d = Δy × 方向）；宽情形：<code>a0 = 0.5 × s × (1 − x0f)²</code>，<code>am = 0.5 × s × x1f²</code>。宣称比 FreeType 2.6.5 在 42 ppem 快 7.6 倍、12 ppem 快 4 倍。</p>
+<p><strong>Skia 解析抗锯齿</strong>（<code>SkScan_AAAPath.cpp</code>，2016）：不再用 16× 超采样的等距扫描线，只在整数 y、路径端点 y 和边交点处放扫描线，把路径分解为梯形并解析算覆盖；一个高 H 的三角形只需约 3+H 条扫描线而非 4H。</p>
+<p><strong>Vello Sparse Strips</strong>（2025–26，<code>vello_common</code>）：路径展平后按 <strong>4×4 像素瓦片</strong>分箱，每条线段对穿过的每个瓦片生成一条记录 <code>{y, x, line_idx:27 | mask:5}</code>（mask 位 = 上/下/左/右/环绕）并排序；条带（strip）是 4 像素高的水平行程 <code>{x, y, alpha_idx | fill_gap}</code>，只有边界瓦片携带每列 4 字节的 alpha，完全覆盖的行程用 <code>fill_gap</code> 标记为纯色填充。覆盖计算是"从左向右射线，像素的覆盖率是环绕数的积分"：每条线在像素内的 Δy 加给右侧所有像素，线段右侧在像素内的梯形加给该像素，用 <code>f32x4</code> SIMD 一次算 4 条扫描线。非零：<code>alpha = min(255, |w| × 255 + 0.5)</code>；奇偶：<code>|w − 2 × floor(w/2 + 0.5)|</code>。CPU 版多线程合成条带，GPU 版把条带与 alpha 上传后用普通顶点/片段着色器光栅化，可跑 WebGL2。</p>
+<h3>4.4 伽马与对比修正</h3>
+<p><strong>问题</strong>：<code>over</code> 合成在光强上是线性的。若在 sRGB 编码值上直接做，50% 覆盖得到编码值 0.5，对应约 21% 线性亮度。深字浅底时中间覆盖像素过暗，字显得<strong>更粗更重</strong>；浅字深底时字显得<strong>更细</strong>。FreeType 文档反过来说：正确的线性混合会把灰阶推向更亮，字"显得细"，于是需要词干加深；而"不做线性混合与伽马校正时，字形显得又重又糊"。Behdad Esfahbod 2024 年的综述指出 Linux 缺少线性混合是其文字观感不如 Windows/macOS 的原因。</p>
+<p><strong>Skia 的"伪伽马"</strong>（<code>SkMaskGamma</code>）：头注说明"普通掩码存线性 alpha；伽马校正掩码存非线性 alpha，试图在一个伽马不正确（线性）的混合器上得到伽马正确的结果"。做法：按<strong>文字颜色</strong>每通道亮度选一张 256 项查找表（<code>index = (R &gt;&gt; (8 − kMaxLumBits)) × 256</code>），表的构造：<code>apply_contrast(a, c) = a + (1 − a) × c × a</code>，再在线性光下算 <code>linOut = linSrc × a + linDst × (1 − a)</code>，存入的是让线性混合器复现 linOut 的<strong>编码 alpha</strong>：<code>result = (out − dst) / (src − dst)</code>。参数：<code>fDeviceGamma</code>（2.6 定点，0 表示 sRGB）、<code>fContrast</code>（0.8 定点）、<code>fLumBits</code>。Chromium 的取值（"近似系统浏览器"）：</p>
+<div class="tbl"><table><thead><tr><th>平台</th><th>SK_GAMMA_EXPONENT</th><th>SK_GAMMA_CONTRAST</th><th>其他</th></tr></thead><tbody>
+<tr><td>Linux / ChromeOS</td><td>1.2</td><td>0.2</td><td></td></tr>
+<tr><td>Android</td><td>1.4</td><td>0.0</td><td>SK_GAMMA_APPLY_TO_A8</td></tr>
+<tr><td>macOS</td><td>sRGB</td><td>0.0</td><td>SK_GAMMA_SRGB</td></tr>
+<tr><td>Windows</td><td>sRGB</td><td>1.0</td><td>SK_GAMMA_SRGB</td></tr>
+</tbody></table></div>
+<p>Android HWUI 也有自己的 <code>DEFAULT_TEXT_GAMMA 1.4</code>，黑/白阈值 64/192。</p>
+<p><strong>macOS</strong>：Skia 注释"CoreGraphics 隐晦地默认用 2.0 作为亚像素覆盖伽马"，且"CG 把轮廓膨胀一定百分比"，这就是 <code>CGContextSetShouldSmoothFonts</code> 的"字体平滑"既是 LCD 滤波也是加粗的原因。Mojave（2018）去掉彩色次像素，Big Sur（2020）去掉设置里的开关，<code>CGFontRenderingFontSmoothingDisabled</code> 逐应用覆盖失效，只剩 <code>defaults -currentHost write -g AppleFontSmoothing -int 0…3</code>。</p>
+<p><strong>Windows</strong>：<code>IDWriteRenderingParams</code> 提供 <code>gamma</code>（0 到 256）、<code>enhancedContrast</code>（0 无增强，典型 0–1）、<code>clearTypeLevel</code>、<code>pixelGeometry</code>（FLAT/RGB/BGR）；显示器参数由 ClearType 调谐器写入注册表。WPF 文档给出注册表默认：ClearTypeLevel 100、GammaLevel <strong>1900</strong>、TextContrastLevel 1。GDI 的字体平滑对比度 1000–2200，默认 1400。</p>
+<h3>4.5 次像素（LCD）渲染</h3>
+<p><strong>ClearType 管线</strong>：光栅器输出<strong>过采样位图</strong> → 滤波 → 逐通道 alpha。微软白皮书："标准 ClearType 用 6×1 滤波：x 方向六倍分辨率，y 不变"；对称平滑是 <strong>6×5</strong>。GDI ClearType 没有亚像素定位。Platt 2000 年论文的滤波器由"受心理物理实验启发的误差度量"（亮度/对色权重）最优化得到，效果"相当于小 25% 字号下的标准抗锯齿"；"位移滤波"是每个通道的滤波器以该子像素的物理位置为中心。微软实际系数未公开。</p>
+<p><strong>FreeType 的 FIR 滤波</strong>（权重以 1/256 计，作用于 3× 过采样覆盖，须对称、色平衡、归一）：</p>
+<div class="tbl"><table><thead><tr><th>滤波器</th><th>系数</th><th>和</th></tr></thead><tbody>
+<tr><td><code>FT_LCD_FILTER_DEFAULT</code>（"斜面"）</td><td>[0x08 0x4D 0x56 0x4D 0x08] = [8, 77, 86, 77, 8]</td><td>256</td></tr>
+<tr><td><code>FT_LCD_FILTER_LIGHT</code>（"盒式"）</td><td>[0x00 0x55 0x56 0x55 0x00] = [0, 85, 86, 85, 0]</td><td>256</td></tr>
+<tr><td><code>FT_LCD_FILTER_NONE</code></td><td>恒等</td><td>严重彩边</td></tr>
+</tbody></table></div>
+<p><strong>Harmony</strong>（2.8.1，2017，不编译 ClearType 式滤波时的默认）：把轮廓分别平移 −1/3、0、+1/3 像素渲染三次，各取一个通道。"因为平移不改变积分覆盖，所以对彩边免疫"，且 <code>FT_Library_SetLcdGeometry</code> 可给任意三点几何，能适配非条纹布局。</p>
+<p><strong>为什么 LCD 文字需要不透明背景</strong>（WebRender 文档的公式）：</p>
+<ul>
+<li>灰度：<code>result = text × mask.a + (1 − text.a × mask.a) × dest</code>，GL 混合 <code>ONE, ONE_MINUS_SRC_ALPHA</code>。</li>
+<li>分量 alpha：对 c ∈ {r,g,b}，<code>result.c = text.c × mask.c + (1 − text.a × mask.c) × dest.c</code>。每个通道的 alpha 不同，<strong>不存在单一像素 alpha</strong>，因此"只支持不透明目标"。GPU 实现：(1) 混合常量技巧（<code>CONSTANT_COLOR, ONE_MINUS_SRC_COLOR</code>，仅单一文字色）；(2) 两遍（<code>ZERO, ONE_MINUS_SRC_COLOR</code> 再 <code>ONE, ONE</code>）；(3) <strong>双源混合</strong>（<code>ARB_blend_func_extended</code>），一遍两输出。</li>
+</ul>
+<p>DirectWrite 同样说明 ClearType"对红绿蓝分别计算覆盖……没有单一 alpha，不适合渲染到透明中间位图"；Direct2D 在目标带 alpha、PushLayer 未指定 <code>INITIALIZE_FOR_CLEARTYPE</code>、或 OUTLINE 模式下自动降级为灰度，并建议灰度"质量与 ClearType 相当但快得多"。</p>
+<p><strong>DirectWrite 渲染模式</strong>：<code>GDI_CLASSIC</code>（水平抗锯齿，整数前进宽，与 GDI 兼容）、<code>GDI_NATURAL</code>（前进宽接近设计值但仍取整）、<code>NATURAL</code>（水平抗锯齿 + 亚像素定位）、<code>NATURAL_SYMMETRIC</code>（x、y 都抗锯齿，"通常用于大字号"）、<code>OUTLINE</code>。Skia 的选择逻辑：gasp 有 SymmetricSmoothing → NATURAL_SYMMETRIC；有 hint、gasp 为空或 v0 且 &lt; 20 像素 → NATURAL（非对称，因为有些字体"依赖 y 方向的丢点控制"）；否则 NATURAL_SYMMETRIC。</p>
+<p><strong>被什么杀死</strong>：XP 时代的 ClearType 只支持水平 RGB/BGR 条纹，竖屏退化；平板需要旋转，"彩色 ClearType 需要知道背景像素颜色，妨碍平滑滚动与缩放"，UWP 改用灰度。PenTile RGBG 中绿子像素与像素一一对应而红蓝共享，三等条纹假设不成立；2021 年"几乎所有"移动 OLED 是 PenTile 变体。</p>
+<h3>4.6 亚像素定位</h3>
+<div class="tbl"><table><thead><tr><th>系统</th><th>量化</th><th>机制</th></tr></thead><tbody>
+<tr><td>Skia</td><td>每轴 2 位 → <strong>4 个位置</strong>（<code>kSubPixelPosLen = 2</code>，取整常量 1/8）；打包为 <code>[subY:2][glyphID:16][subX:2]</code></td><td>分数偏移传给后端（CG：<code>CGPointMake(−left + subX, …)</code>；DirectWrite：<code>fXform.dx/dy</code>）；<code>SkAxisAlignment</code> 在文字轴对齐时只保留一轴</td></tr>
+<tr><td>DirectWrite</td><td>NATURAL 模式接受任意分数原点，内部量化值未见文档（白皮书的亚像素定位宽度"取整到 1/16 像素"）</td><td><code>CreateGlyphRunAnalysis</code> 传入变换</td></tr>
+<tr><td>FreeType</td><td>无内置：客户端用 <code>FT_Set_Transform(face, matrix, delta)</code> 或 <code>FT_Outline_Translate</code> 先平移轮廓</td><td><code>lsb_delta/rsb_delta</code> 暴露 hinting 造成的侧承变化</td></tr>
+<tr><td>Core Graphics</td><td><code>CGContextSetAllowsFontSubpixelPositioning</code> 启用，<code>…SubpixelQuantization</code> 让 CG 自己量化</td><td>Skia 关闭 CG 量化，自己做 1/4 像素量化</td></tr>
+</tbody></table></div>
+<p>后果：每个不同偏移都是不同缓存项（Skia 一个字形最多 16 种，轴对齐时 4 种）。前进宽度：GDI classic/natural 取整到整数像素（hdmx 时代），DirectWrite NATURAL 与 Core Text 保持分数前进宽，所以同一段文字在 GDI 与 DirectWrite 下行宽不同。FreeType 的 <code>FT_LOAD_TARGET_LIGHT</code> 只做垂直吸附正是为了"保留水平字间距"。</p>
+</section>
+<section id="s5">
+<h2><span class="num">05</span>算法详解 III：GPU 时代的文字</h2>
+<h3>5.1 字形图集：CPU 光栅化 + GPU 合成</h3>
+<p>这是 2026 年仍占主流的路径。要点：</p>
+<ul>
+<li><strong>打包算法</strong>：Skia <code>RectanizerSkyline</code>（"部分基于 Jukka Jylänki 的工作"）维护天际线段 <code>{x, y, width}</code>，为每个矩形扫描能放下的最低左位置，合并层级，<code>percentFull = areaSoFar / (w×h)</code>。WebRender 用 étagère 的<strong>货架打包</strong>：按相近高度开行，从左到右放，支持 <code>deallocate(id)</code>，"对大量尺寸相近的项（动态字形图集）效果很好"。Android HWUI 旧版 <code>CacheTexture</code> 用<strong>列式空闲表</strong>：先看能否放进已开的列，否则从剩余空间开新列；A8 与 RGBA（彩色表情）分开；<code>mDirtyRect</code> 只上传脏区。</li>
+<li><strong>绘制</strong>：每个字形是一个采样图集的纹理四边形（A8、LCD 用 RGB、彩色用预乘 RGBA）。四边形上的 MSAA 没有意义，抗锯齿已在纹理里。图集须留 ≥ 1 纹素透明边，预乘彩色字形的边必须是预乘零而非 (1,1,1,0)，否则出彩边。</li>
+<li><strong>代价</strong>：每 (字体, 尺寸, 变换, 亚像素偏移, 颜色亮度, 变量轴) 一份；旋转缩放时模糊；图集抖动。Direct2D 建议复用 <code>IDWriteTextLayout</code>，小图打进带透明边的图集。</li>
+</ul>
+<h3>5.2 Loop–Blinn（2005）：隐式曲线着色器</h3>
+<ul>
+<li>二次曲线：以三个控制点为三角形，纹理坐标 (0,0)、(1/2,0)、(1,1)，像素在曲线内当且仅当 <code>f(u,v) = u² − v &lt; 0</code>。</li>
+<li>三次曲线：隐式函数 <code>f = k³ − l×m</code>（k、l、m 为线性泛函），按拐点多项式判别式分类：蛇形（&gt; 0）、环形（&lt; 0，需分割）、尖点（= 0）、退化二次、直线、点。</li>
+<li>抗锯齿：屏幕空间有符号距离 <code>d ≈ f / |∇f|</code>，梯度用 <code>ddx/ddy</code> 与链式法则，<code>alpha = clamp(0.5 − d, 0, 1)</code>。</li>
+<li>弱点（Slug 论文的批评）：三角形数与控制点数绑定，小字号下三角形过小，GPU 占用率低。</li>
+</ul>
+<h3>5.3 有符号距离场（Valve，2007）</h3>
+<ul>
+<li>生成：高分辨率二值图（如 4096²）→ 每个输出纹素在局部邻域暴力搜索最近的异态纹素 → 用"扩展系数"把有符号距离映射到 [0,1]，8 位存储，0.5 为边 → 输出如 64×64。更快的生成：8SSEDT 两遍 8 邻域扫描；<strong>跳跃泛洪</strong>（Rong &amp; Tan，I3D 2006）：步长 N/2、N/4…1 各一遍，每像素查 8 个偏移 k 的邻居保留最近种子，约 9 log₂N 次操作/像素，近似解。</li>
+<li>渲染：固定管线用 0.5 alpha 测试；着色器 <code>alpha = smoothstep(d_min, d_max, d)</code>，宽度取 <code>fwidth</code>；描边 = 两个阈值之间重新着色；发光 = 0–0.5 段的 smoothstep；投影 = 偏移 UV 二次采样；尖角 = 两个通道的距离场取交。</li>
+<li>局限：尖角被圆化；小字号质量差；缩小时距离场采样不足。</li>
+</ul>
+<h3>5.4 多通道距离场 MSDF（Chlumský，2015）</h3>
+<ul>
+<li><strong>边着色</strong>：给每条边分配 {R,G,B} 的子集（通常各两个通道，即品红/黄/青），使在拐角相遇的边至少有一个通道不同（<code>edgeColoringSimple</code> / <code>InkTrap</code> / <code>ByDistance</code> 启发式）。</li>
+<li>每纹素每通道存到<strong>该颜色边</strong>的有符号距离；重建 <code>median(r,g,b) = max(min(r,g), min(max(r,g),b))</code> 恢复尖角。管线：加载形状 → 归一化 → 边着色 → 生成 → 误差修正 → 输出。</li>
+<li>MTSDF：RGB 为 MSDF，A 为真 SDF，供发光/软阴影。着色器：<code>screenPxRange = max(0.5 × dot(pxRange/textureSize, 1/length(dFdx, dFdy)), 1)</code>，<code>opacity = clamp(screenPxRange × (sd − 0.5) + 0.5, 0, 1)</code>。</li>
+<li>Lengyel 的评价：需要复杂的分析步骤，复杂字形有难以避免的新伪影。</li>
+</ul>
+<h3>5.5 Slug（Lengyel，JCGT 2017）：直接从轮廓算覆盖</h3>
+<ul>
+<li>数据：二次贝塞尔 <code>C(t) = (1−t)²p₁ + 2t(1−t)p₂ + t²p₃</code> 存在 4×16 位浮点纹理（p₁、p₂ 一个纹素，p₃ 与下一条共享），另有 16 位整数"带"纹理。</li>
+<li><strong>带</strong>：字形按等宽切成水平带与垂直带，数量与曲线数成比例，每方向最多 16；每带内曲线按最大 x（或 y）降序排列；像素沿 +x 射线（垂直带沿 +y），当 <code>max{x₁,x₂,x₃} × m &lt; −1/2</code> 时提前退出。可选在中位数处把带一分为二让远侧像素发负向射线，小字号时因分支发散关闭。</li>
+<li><strong>求根与环绕</strong>：<code>a = y₁ − 2y₂ + y₃</code>，<code>b = y₁ − y₂</code>，<code>c = y₁</code>，<code>t₁,₂ = (b ∓ √(b² − ac)) / a</code>（a ≈ 0 时 <code>t = c/2b</code>），<code>b² − ac</code> 钳到 ≥ 0 让相切情形抵消。</li>
+<li><strong>根分类查表</strong>：<code>code = (y₁&gt;0 ? 2:0) + (y₂&gt;0 ? 4:0) + (y₃&gt;0 ? 8:0)</code>，把常量 <strong>0x2E74</strong> 右移 code 位：位 0 置位则在 t₁ 处若 <code>C_x(t₁) ≥ 0</code> 加 1，位 1 置位则在 t₂ 处若 <code>C_x(t₂) ≥ 0</code> 减 1。这用 3 位符号分类替代了 Dobbie/GLyphy 方案中对 t 的范围测试，消除"闪烁"伪影。</li>
+<li><strong>覆盖</strong>：<code>f = sat(m × C_x(tᵢ) + 1/2)</code>（m = 每 em 像素数），沿射线加减得到解析抗锯齿；x、y 两条射线结果取平均；可选超采样（射线起点在像素内偏移，"a、b 不变"故可共享计算）。几何体是切角包围四边形（≤ 8 边形）。</li>
+<li>性能（GTX 1060，200 万像素、32 ppem）：Arial 1.1 ms（图集采样 26 µs）、Centaur 1.3 ms、Wildwood 13.3 ms；Dobbie 约慢 4 倍；预处理数据是 TTF 的 2 至数倍（Arial 894 KB → 1549 KB）。支持 COLR/CPAL 分层。</li>
+</ul>
+<h3>5.6 矢量纹理与三角扇（2016）</h3>
+<p>Will Dobbie：字形按网格分格，每格存相交二次曲线索引于"矢量图集"纹理；每像素水平射线，进入时累加（窗口右边 − 交点），退出时减去，得一维覆盖；四个角度的射线用抛物线窗平均。Evan Wallace：从任意点出发的三角扇配奇偶翻转混合得多边形内部，Loop–Blinn 三角形补曲线部分，多次抖动偏移累加做抗锯齿。</p>
+<h3>5.7 计算着色器：Pathfinder 与 Vello</h3>
+<ul>
+<li><strong>Pathfinder v1</strong>（Walton，2017 年 2 月）：贝塞尔在 GPU 上剖分为小线段 → 扩成屏幕对齐四边形 → 片段着色器把<strong>覆盖差分</strong>（相对上方像素的梯形面积）加法混合写入浮点帧缓冲 → 计算着色器做列前缀和。这就是 font-rs 的累加搬到 GPU。</li>
+<li><strong>Pathfinder v3</strong>（2019）：CPU 把路径切成 16×16 瓦片，分为纯色瓦片与蒙版瓦片并跟踪瓦片边界环绕数；蒙版瓦片里每条边作为"下边吸到瓦片底"的四边形提交，片段写 0/±1/分数面积，加法混合进浮点蒙版纹理；纯色瓦片实例化绘制；被不透明瓦片遮挡的瓦片剔除。相当于 256× 抗锯齿。</li>
+<li><strong>Vello 计算渲染器</strong>（2020–）：场景编码 → 计算着色器展平曲线 → 分箱 → 粗光栅（每瓦片命令列表）→ 精光栅（每瓦片精确面积覆盖）。2026 年退为实验分支，主力转向 4.3 节的 Sparse Strips CPU/GPU 混合，并新增 <code>glifo</code> 字形与涂料 crate。</li>
+</ul>
+<h3>5.8 GPU 文字技术对比</h3>
+<div class="tbl"><table><thead><tr><th>技术</th><th>预计算</th><th>存储</th><th>小字号</th><th>大字号/变换</th><th>尖角</th><th>现状</th></tr></thead><tbody>
+<tr><td>字形图集</td><td>CPU 光栅化每份</td><td>每尺寸一份</td><td>最好（hinting、次像素全保留）</td><td>模糊，需重新光栅化</td><td>完美</td><td>浏览器、系统 UI 的主流</td></tr>
+<tr><td>Loop–Blinn</td><td>三角化</td><td>轮廓大小</td><td>三角形过小</td><td>分辨率无关</td><td>完美</td><td>学术/Skia 早期</td></tr>
+<tr><td>SDF</td><td>距离场纹理</td><td>64² 级</td><td>差</td><td>好</td><td>圆化</td><td>游戏 UI（Unity TextMeshPro 默认）</td></tr>
+<tr><td>MSDF</td><td>距离场 + 边着色</td><td>64² 级 ×3 通道</td><td>一般</td><td>好</td><td>好</td><td>游戏、msdf-atlas-gen</td></tr>
+<tr><td>Slug</td><td>曲线 + 带纹理</td><td>TTF 的 2–数倍</td><td>好</td><td>像素精确，透视也可</td><td>完美</td><td>商业游戏（ZeniMax、Blizzard 等）</td></tr>
+<tr><td>模板后覆盖</td><td>无</td><td>轮廓</td><td>依赖 MSAA</td><td>好</td><td>完美</td><td>NV_path_rendering、Skia 后备</td></tr>
+<tr><td>计算/混合光栅</td><td>无</td><td>轮廓</td><td>好（精确面积）</td><td>好</td><td>完美</td><td>Vello、Pathfinder；新框架</td></tr>
+</tbody></table></div>
+<h3>5.9 彩色字形、变量字体与整形缓存</h3>
+<ul>
+<li><strong>位图彩色</strong>：<code>sbix</code> 按 ppem/ppi 存 PNG/JPEG/TIFF 条带，缺尺寸时"选最近的更大尺寸或整数倍尺寸"缩放，缩小即模糊；CBDT/CBLC 类似。Noto Emoji 位图 9 MB，COLRv1 版 1.85 MB WOFF2。</li>
+<li><strong>COLRv0</strong>：Z 序图层，每层普通轮廓填 CPAL 颜色（0xFFFF = 前景色）。<strong>COLRv1</strong>：绘制有向无环图，节点含纯色、线性/径向/扫掠渐变、变换、合成模式、<code>PaintGlyph</code>、嵌套 <code>PaintColrGlyph</code>、形状复用、原生变量；FreeType 只暴露图（<code>FT_Get_Color_Glyph_Paint</code>），"需要 Skia 或 Cairo 这类图形库来执行绘制命令"。图集必须存预乘 RGBA 而非 A8，且禁用 LCD。</li>
+<li><strong>变量字体实例化</strong>：每字形对每个适用区域算标量（归一化 2.14 轴坐标）、解压游程编码的点号与增量、<code>point += Σ scalar_i × delta_i</code>、对未引用点做 IUP 式插值；复合字形先变分量偏移再对每个分量跑 hinting，<code>cvar</code> 变 CVT；度量应取 <code>HVAR</code> 以免跑光栅器。每个轴元组是一个新 strike，缓存项成倍增加；ttfautohint 不支持变量字体。</li>
+<li><strong>整形缓存</strong>：HarfBuzz 只缓存<strong>整形计划</strong>（<code>hb_shape_plan_create_cached</code>，按 face + 段属性 + 用户特性），不缓存整形结果；词级缓存在客户端：Blink <code>ShapeCache</code>（按字体、短字符串键）、Minikin <code>LayoutCache</code>（LRU，键为文本 + 画笔 + 字体集 + 方向）。Behdad：因字形与字体缓存，光栅化"通常只占实际渲染时间的一小部分"。</li>
+</ul>
+</section>
+<section id="s6">
+<h2><span class="num">06</span>移动端变迁史（1996–2026）</h2>
+<h3>6.1 PDA 与功能机：点阵、嵌入式光栅器、第一次 ClearType（1996–2007）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>平台</th><th>事实</th></tr></thead><tbody>
+<tr><td>1996-03</td><td>Palm OS 1.0</td><td>160×160 单色，纯点阵字体；3.5（2000）首次 8 位色；5.0（2002）320×320 高密度，5.2 加 480×320。是否引入抗锯齿系统字体未能核实</td></tr>
+<tr><td>2000-04-19</td><td>Microsoft Reader for Pocket PC</td><td><strong>ClearType 第一个出货实现</strong>就在掌上设备：Reader 内置于 Windows CE 3.0 ROM，宣传"ClearType 提高小屏幕可读性"。Pocket PC 2002（2001-10，240×320）捆绑 Reader 2。系统级 ClearType 是否在 Pocket PC 2002 出现未能核实，Windows CE 文档确认支持旋转屏上的 ClearType</td></tr>
+<tr><td>2002</td><td>Nokia</td><td>Nokia Sans（Erik Spiekermann）成为企业与 UI 字体；2011-03-28 发布 Nokia Pure（Dalton Maag），先上 N9，后推到 Symbian、S40/S30、Asha 与 HMD 功能机</td></tr>
+<tr><td>2002–</td><td>Symbian / S60</td><td>开源的文本栈 <code>textandloc/fontservices</code> 含 <code>fontstore</code>、<strong><code>freetypefontrasteriser</code></strong>、<code>textshaperplugin</code>：字体服务器通过 FreeType 光栅器插件与整形插件工作，即智能机时代前 FreeType 已在手机里</td></tr>
+<tr><td>1997–1999</td><td>日本功能机</td><td>SoftBank J-Phone SkyWalker DP-211SW（1997）90 个 <strong>12×12 单色表情</strong>；NTT DoCoMo i-mode（1999，栗田穣崇）176 个彩色表情。DynaComware（1987 年创立）向嵌入式与移动设备供应 CJK 字体</td></tr>
+<tr><td>2000s</td><td>BlackBerry</td><td>自带 BBAlpha Sans/Serif（基于 DejaVu）、BBGlobal、BBMillbank、BBClarity 等，加 Arial/Georgia/Verdana</td></tr>
+<tr><td>2002</td><td>J2ME MIDP 2.0</td><td><code>javax.microedition.lcdui.Font</code> 只暴露三种字面（SYSTEM/MONOSPACE/PROPORTIONAL）、三种尺寸、粗/斜/下划线，"实际实现取决于设备"，通常是点阵</td></tr>
+<tr><td>2001–2012</td><td>嵌入式光栅器</td><td>Bitstream Font Fusion（与 Type Solutions 合作开发，BeOS 2001 年起使用；Bitstream 字体业务 2012 年 3 月以 5000 万美元卖给 Monotype）；Monotype 通过收购 Linotype（2006）、Ascender（2010）、Bitstream（2012）整合了嵌入式字体供应商，其 iType 在 Symbian/BlackBerry 固件中的具体部署未能从一手来源核实</td></tr>
+<tr><td>2007</td><td>Amazon Kindle</td><td>167 ppi 电子墨水，<strong>4 级灰度</strong>（Kindle 2 起 16 级）；Paperwhite 212 ppi（2012）、Voyage 300 ppi（2014）；2015 年 Bookerly（Dalton Maag）取代 Caecilia，配新排版引擎（连字、字距）；电子纸需周期全刷新消除残影</td></tr>
+</tbody></table></div>
+<p>这一时期的共同点：屏幕 100–200 ppi、内存以 MB 计、CPU 无浮点或很慢，因此<strong>点阵字体或带嵌入位图的轮廓字体 + 二值/4 级灰度渲染</strong>是常态；ClearType 在 Reader 里的出现说明次像素渲染最初就是为低分辨率小屏发明的。</p>
+<h3>6.2 iPhone / iOS（2007–2026）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>事件</th></tr></thead><tbody>
+<tr><td>2007-06-29</td><td>iPhone：320×480，<strong>163 ppi</strong>，系统字体 Helvetica；文字栈 Core Graphics 光栅化 + Core Animation 合成</td></tr>
+<tr><td>2008-11</td><td>iPhone OS 2.2 Apple Color Emoji（471 个，仅日本 SoftBank）</td></tr>
+<tr><td>2010</td><td>iPhone 4：<strong>326 ppi Retina</strong>，系统字体换 Helvetica Neue；iOS 3.2 公开 <strong>Core Text</strong>（字符到字形、连字、字距、字体级联），<code>kCTFontVariationAttribute</code> 同期可用（Apple 早于 OpenType 1.8 的变量模型）</td></tr>
+<tr><td>2011</td><td>iOS 5：表情迁移到 Unicode 6.0 并全球开放；字形是 20/32/40/48/64/96/160 px 的 PNG 条带，存于 Apple 的 <strong>sbix</strong> 表，后来标准化进 OpenType 1.8</td></tr>
+<tr><td>2013-09</td><td>iOS 7：更细的字重；<strong>Dynamic Type</strong>（<code>UIFont.preferredFont(forTextStyle:)</code>）；TextKit 1</td></tr>
+<tr><td>2014-11</td><td><strong>San Francisco</strong> 发布给开发者（Apple 约二十年来第一个新字体）；SF Compact 用于 Apple Watch</td></tr>
+<tr><td>2015</td><td>iOS 9 / El Capitan：SF 取代 Helvetica Neue；<strong>SF Text（&lt; 20 pt）/ SF Display（≥ 20 pt）</strong>自动切换，附逐字号字距表</td></tr>
+<tr><td>2016–2018</td><td>SF Mono、SF Pro（更多字重、光学尺寸、语言）、SF Pro Rounded</td></tr>
+<tr><td>2017-09</td><td>iPhone X：2436×1125 OLED，<strong>458 ppi</strong>，三星面板，PenTile 变体（维基百科：iPhone X 至 14 Pro）</td></tr>
+<tr><td>2020（WWDC20）</td><td>SF Pro 与 New York 成为<strong>带光学尺寸轴的单个变量字体</strong>，Text 到 Display 的过渡在 17–28 pt 连续（原为 20 pt 硬切换）</td></tr>
+<tr><td>2021（WWDC21）</td><td><strong>TextKit 2</strong>（iOS 15 / macOS 12）：基于视口、无字形 API（<code>NSTextLayoutManager</code>、<code>NSTextLayoutFragment</code>），"仍用 Core Text 渲染"</td></tr>
+</tbody></table></div>
+<p>栈：UIKit/SwiftUI → TextKit 1/2 → Core Text（整形、布局）→ Quartz/Core Graphics（光栅化）→ Core Animation（GPU 合成）。iOS 从一开始就<strong>只有灰度抗锯齿、不做 LCD 次像素、忽略 TrueType 指令</strong>，这一点被广泛报道但本次未取得 Apple 一手文档；从 163 ppi 起步的 iPhone 是"忠实轮廓 + 灰度 + 亚像素定位"路线在低分辨率上的第一次大规模验证，Retina 之后这条路线的代价消失。</p>
+<h3>6.3 Android（2008–2026）</h3>
+<p><strong>字体</strong>：</p>
+<div class="tbl"><table><thead><tr><th>日期</th><th>事件</th></tr></thead><tbody>
+<tr><td>2007</td><td><strong>Droid</strong> Sans/Serif/Sans Mono + Droid Sans Fallback（CJK），Steve Matteson，Ascender，"为手机小屏设计"，Apache 许可，带 hint</td></tr>
+<tr><td>2011-10</td><td>Android 4.0：<strong>Roboto</strong>（Christian Robertson）取代 Droid，因 Droid"在更大更高分辨率屏幕上表现不佳"</td></tr>
+<tr><td>2014-06</td><td>Roboto 重设计（Lollipop / Material Design）；后有 Roboto VF（3 轴）、Roboto Flex（12 轴含光学尺寸）、Roboto Serif（2022）</td></tr>
+<tr><td>2013</td><td><strong>Noto</strong>（"no tofu"）首发；2013-10 Android 4.4 首个支持彩色表情（Noto Color Emoji，<strong>CBDT/CBLC</strong> 位图）</td></tr>
+<tr><td>2014-07-16</td><td><strong>Source Han Sans = Noto Sans CJK</strong>（Adobe + Google，65535 字形，7 字重）</td></tr>
+<tr><td>2022</td><td>Android 13：<strong>COLRv1</strong> 渲染，系统表情转 COLRv1</td></tr>
+<tr><td>2024</td><td>Android 15：Noto Sans CJK 变为<strong>变量字体</strong></td></tr>
+</tbody></table></div>
+<p><strong>文字管线</strong>：</p>
+<div class="tbl"><table><thead><tr><th>版本</th><th>细节</th></tr></thead><tbody>
+<tr><td>1.0–3.x（2008–11）</td><td>Skia 画布 + FreeType 光栅器 + Droid</td></tr>
+<tr><td>4.0（2011）</td><td><code>TextLayoutCache</code>（<code>frameworks/base/core/jni</code>）用<strong>旧 HarfBuzz</strong>（<code>HB_ShaperItem</code>、<code>HarfbuzzSkia.h</code>）整形，按 SkPaint 键 LRU 缓存</td></tr>
+<tr><td>4.4（2013）</td><td>同一缓存换到 <strong>HarfBuzz NG</strong>（<code>hb_buffer_t</code>、<code>hb_face_t</code>）</td></tr>
+<tr><td>5.0（2014）</td><td><strong>Minikin</strong>（Raph Levien）：HarfBuzz NG + FreeType + ICU，词级布局缓存 LRU（Gitiles 本次不可达，属公认事实但未一手核实）</td></tr>
+<tr><td>8.0（2017，API 26）</td><td><code>Paint.setFontVariationSettings</code>（取代删除的 <code>Rasterizer</code> API）、<code>TextView.setJustificationMode</code>、自动字号、<strong>XML 字体与可下载字体</strong></td></tr>
+<tr><td>13（2022）</td><td>COLRv1；连字符快 200%；日文文节换行；ICU 70</td></tr>
+<tr><td>15（2024）</td><td><code>FontFamily.Builder.buildVariableFamily()</code>、CJK 字间对齐、<code>&lt;nobreak&gt;</code>；ANGLE 可选层</td></tr>
+</tbody></table></div>
+<p><strong>硬件加速文字（HWUI，Android 3.0 起）</strong>：Android 4.4 的 <code>libs/hwui/FontRenderer</code>：从 Skia 取 <code>SkGlyph</code> 位图（A8、ARGB32、BW），加边框打包进 GL <strong>缓存纹理</strong>，分 <code>mACacheTextures</code>（alpha）与 <code>mRGBACacheTextures</code>（彩色）两组，各有"小""大"两种，尺寸来自 <code>ro.hwui.text_small_cache_width/height</code> 与 <code>ro.hwui.text_large_cache_width/height</code> 系统属性并钳到 <code>maxTextureSize</code>；字形四边形经 <code>appendMeshQuad</code> 批量提交；<code>renderPosText</code>、<code>renderTextOnPath</code>；投影用 RenderScript 高斯模糊（大尺寸）或可分离高斯回退。文字伽马：<code>DEFAULT_TEXT_GAMMA 1.4</code>，黑白阈值 64/192（Android 4.1 已有）。</p>
+<p><strong>Paint 标志与 hinting</strong>：<code>ANTI_ALIAS_FLAG</code>（SDK 31+ 默认开）、<code>SUBPIXEL_TEXT_FLAG</code>（0x80，是<strong>亚像素定位</strong>而非 LCD 彩色抗锯齿）、<code>LINEAR_TEXT_FLAG</code>（关闭 hinting 与缓存）、<code>HINTING_ON/OFF</code>，以及一个隐藏的 <code>LCD_RENDER_TEXT_FLAG</code>（0x200，非公开 API）。Skia 的 FreeType 端口映射：<code>kNone → FT_LOAD_NO_HINTING</code>，<code>kSlight → FT_LOAD_TARGET_LIGHT</code>（隐含强制自动 hinter），<code>kNormal → NORMAL</code>，<code>kFull → NORMAL</code> 或请求 LCD 时 <code>LCD/LCD_V</code>；安装 <code>FT_LCD_FILTER_DEFAULT</code>；用 <code>FT_Set_Var_Design_Coordinates</code> 设变量轴。Android 在实践中<strong>只出灰度</strong>：公开 API 从未暴露 LCD 渲染，UI 可旋转与窗口合成破坏 RGB 条纹假设，2010 年起的旗舰 AMOLED 是 PenTile。</p>
+<h3>6.4 屏幕技术对渲染算法的影响</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>设备</th><th>显示</th></tr></thead><tbody>
+<tr><td>2007-06</td><td>iPhone</td><td>163 ppi LCD</td></tr>
+<tr><td>2010-01-05</td><td>Nexus One</td><td>AMOLED <strong>PenTile RGBG</strong>，254 ppi，"平均每像素两个子像素"；HTC 2010-07 改用 RGB 条纹的 Super LCD</td></tr>
+<tr><td>2010-06-04</td><td>Galaxy S</td><td>Super AMOLED PenTile RGBG，233 ppi</td></tr>
+<tr><td>2010-06</td><td>iPhone 4</td><td>326 ppi；Apple 称 300 ppi 已超人眼极限（约 60 ppd），DisplayMate 称需 477 ppi，2024 年一项研究给出约 94 ppd 消色极限</td></tr>
+<tr><td>2013</td><td>Galaxy S4</td><td>PenTile Diamond Pixel 减轻彩边；批评者仍指出饱和色上"文字模糊"</td></tr>
+<tr><td>2017</td><td>iPhone X</td><td>458 ppi OLED，PenTile 变体</td></tr>
+<tr><td>2021</td><td>—</td><td>"几乎所有"便携 OLED 是 PenTile 变体</td></tr>
+<tr><td>2007–2014</td><td>Kindle</td><td>167 → 212 → 300 ppi；4 → 16 级灰度</td></tr>
+</tbody></table></div>
+<p>推论：RGBG/菱形布局让每个像素不再拥有完整 RGB 三元组，RGB 条纹次像素抗锯齿失效，这是 iOS 与 Android 都不暴露 LCD 文字渲染的原因之一；≥ 300 ppi 后 hinting 收益崩塌，与 Skia/Android 只用轻度自动 hint 或不 hint、Apple 完全忽略 hint 一致。Android 的密度桶（mdpi/hdpi/xhdpi…）与 iOS 的 2×/3× 比例因子决定了字形缓存按逻辑像素还是物理像素建键。</p>
+<h3>6.5 移动浏览器与跨平台框架</h3>
+<ul>
+<li><strong>iOS WebKit</strong>：Core Text 是 iOS 唯一公开文字引擎（iOS 3.2 起）。</li>
+<li><strong>Chrome Android</strong>：Skia + HarfBuzz + FreeType（2024–26 逐步换 Skrifa）+ 系统字体；Web 字体 WOFF2（Chrome 36、Safari 10）。</li>
+<li><strong>Flutter Impeller</strong>：README 明言"不做任何文字布局或整形"，Typographer 接收已整形的字形运行并渲染进<strong>纹理图集</strong>；iOS 上 Impeller 是唯一渲染器，Android API 29+ 自 Flutter 3.27 默认（Vulkan，GL 回退），桌面自 3.47 默认。</li>
+<li><strong>React Native</strong>：<code>&lt;Text&gt;</code> 扁平化为原生 <code>NSAttributedString</code>（iOS）或 <code>SpannableString</code>（Android），即平台文字渲染。</li>
+<li><strong>游戏引擎</strong>：Unity TextMeshPro 以 SDF 图集为推荐字体资产类型；Slug 支持 Metal/Vulkan/GLES 移动平台。</li>
+</ul>
+<h3>6.6 移动端与 PC 的差异总结</h3>
+<div class="tbl"><table><thead><tr><th>维度</th><th>PC（Windows 传统）</th><th>移动端（iOS / Android）</th></tr></thead><tbody>
+<tr><td>抗锯齿</td><td>灰度 → ClearType 彩色（2001–2018 主流）→ 灰度回归</td><td><strong>始终灰度</strong>（iOS 2007 起，Android 从未暴露 LCD）</td></tr>
+<tr><td>hinting</td><td>完整 TrueType 指令（GDI）→ 只垂直（DirectWrite/v40）</td><td>忽略（iOS）或轻度自动 hint（Android <code>kSlight</code>）</td></tr>
+<tr><td>亚像素定位</td><td>GDI 无 → DirectWrite/Core Text 有</td><td>Core Text 有；Android <code>SUBPIXEL_TEXT_FLAG</code></td></tr>
+<tr><td>光栅化位置</td><td>CPU</td><td>CPU</td></tr>
+<tr><td>合成</td><td>GDI 位块 → DWM/GPU</td><td><strong>一开始就是 GPU</strong>（Core Animation 2007、HWUI 2011）</td></tr>
+<tr><td>伽马</td><td>ClearType 调谐器、WPF 1.9、Skia sRGB + 对比 1.0</td><td>CG 2.0 覆盖伽马；HWUI 1.4；Skia Android 1.4</td></tr>
+<tr><td>屏幕</td><td>96 dpi RGB 条纹 → 4K/HiDPI</td><td>163 ppi → 326 → 458；PenTile OLED</td></tr>
+<tr><td>字体格式</td><td>TrueType 手工 hint → OpenType/CFF → 变量</td><td>点阵/嵌入位图 → 轮廓 → 变量（SF 2020、Noto CJK 2024）</td></tr>
+<tr><td>表情</td><td>后来者</td><td>发源地：12×12 位图（1997）→ sbix PNG（2011）→ CBDT（2013）→ COLRv1（2022）</td></tr>
+<tr><td>缓存</td><td>strike 按 (字体, 尺寸, 变换, 偏移, 颜色)</td><td>同，但密度桶固定、旋转少，图集更稳定；功耗约束偏好 HWC 覆盖平面而非重绘</td></tr>
+</tbody></table></div>
+</section>
+<section id="s7">
+<h2><span class="num">07</span>汇合：2026 年谁在用哪种算法</h2>
+<div class="tbl"><table><thead><tr><th>场景</th><th>hinting</th><th>光栅化</th><th>抗锯齿</th><th>合成</th></tr></thead><tbody>
+<tr><td>Windows 桌面（Win32 GDI）</td><td>TrueType 指令，向后兼容模式</td><td>微软光栅器 2.x</td><td>ClearType 6×1 或灰度</td><td>DWM GPU</td></tr>
+<tr><td>Windows 现代（DirectWrite/D2D/UWP）</td><td>只垂直</td><td>DirectWrite</td><td>灰度对称（推荐）/ ClearType 仅不透明</td><td>Direct2D 图集 + 像素着色器</td></tr>
+<tr><td>macOS / iOS</td><td>忽略</td><td>Core Graphics，覆盖伽马 2.0 + 膨胀</td><td>灰度，亚像素定位</td><td>Core Animation 图集</td></tr>
+<tr><td>Linux 桌面</td><td>FreeType v40（只垂直）或自动 hinter light</td><td>ftgrays 精确面积</td><td>灰度或 Harmony/FIR LCD</td><td>合成器 GPU；缺线性混合</td></tr>
+<tr><td>Android</td><td>Skia <code>kSlight</code> → FreeType light</td><td>FreeType（Skrifa 在 Chrome 中）</td><td>灰度，预混伽马 1.4</td><td>HWUI/Skia 图集，Vulkan</td></tr>
+<tr><td>Chrome（全平台）</td><td>随平台</td><td>Skrifa（Rust，Chrome 145 起无 FreeType）</td><td>灰度，SkMaskGamma 预混</td><td>Skia Ganesh/Graphite 图集，大字号 SDF</td></tr>
+<tr><td>Firefox</td><td>随平台</td><td>平台 API → CPU</td><td>灰度；LCD 仅不透明层（双源混合）</td><td>WebRender 图集，étagère 货架打包</td></tr>
+<tr><td>游戏</td><td>无</td><td>预计算 SDF/MSDF 或 Slug 运行时</td><td>着色器 smoothstep / 解析覆盖</td><td>纹理四边形</td></tr>
+<tr><td>新框架（Linebender、Bevy）</td><td>无</td><td>Vello Sparse Strips（CPU 或 CPU+GPU）</td><td>精确面积</td><td>条带上传 GPU</td></tr>
+</tbody></table></div>
+<p>整体判断：<strong>hinting 已从"必需"退为"垂直吸附可选"，彩色次像素渲染在移动端从未存在、在桌面正在退场，精确面积覆盖光栅化是所有 CPU 与混合方案的共同内核，GPU 直接从轮廓算覆盖的方案（Slug、Vello）在游戏与新框架中站稳但尚未进入浏览器与系统 UI</strong>。移动端不是 PC 的缩小版，而是先一步走完了"忠实轮廓 + 灰度 + GPU 合成"的路线，PC 在 HiDPI 之后正在向它靠拢。</p>
+</section>
+<section id="s8">
+<h2><span class="num">08</span>主要参考来源</h2>
+<ul>
+<li>OpenType 规范：TrueType fundamentals（ttch01）、Instructing TrueType glyphs、Instruction set、gasp、hdmx、LTSH、maxp、gvar、sbix、Spec changes</li>
+<li>微软：TrueType hinting for ClearType 白皮书、History of TrueType、GDI ClearType antialiasing、Introducing DirectWrite、DWRITE_RENDERING_MODE、DWRITE_TEXT_ANTIALIAS_MODE、IDWriteRenderingParams、D2D1_TEXT_ANTIALIAS_MODE、Improving Direct2D Performance、WPF ClearType 注册表设置</li>
+<li>Adobe：Type 1 Font Format 规范（1990）、Type 2 Charstring Format（TN5177）</li>
+<li>Microsoft Research：Platt, "Optimal filtering for patterned displays"（IEEE SPL 2000）；Platt 等, "Displaced filtering for patterned displays"（SID 2000）</li>
+<li>FreeType 文档与源码：subpixel-hinting、text-rendering-general、ft2-properties、ft2-lcd_rendering、ft2-glyph_retrieval、ft2-layer_management、patents；ftgrays.c、ftraster.c、ttinterp.c/h、aflatin.c、afhints.c、afblue.dat、psblues.c、pshints.c、psfont.c、CHANGES</li>
+<li>Skia 源码：SkMaskGamma.h/.cpp、SkScalerContext.h、SkGlyph.h、SkScalerContext_mac_ct.cpp、SkScalerContext_win_dw.cpp、SkFontHost_FreeType.cpp、RectanizerSkyline.h、SkScan_AAAPath.cpp、src/text/gpu；Chromium skia/BUILD.gn</li>
+<li>Android：AOSP <code>TextLayoutCache.h</code>（4.0.1、4.4）、<code>libs/hwui/FontRenderer.h/.cpp</code>、<code>Properties.h</code>、<code>font/CacheTexture.h</code>、<code>Paint.java</code>；developer.android.com 3.0 Highlights、API 26 diff、Android 13/15 features、可下载字体；source.android.com Graphics/HWC/Vulkan</li>
+<li>Apple：Core Text 文档、<code>kCTFontVariationAttribute</code>、<code>UIFont.preferredFont</code>、WWDC20 "The details of UI typography"、WWDC21 "Meet TextKit 2"、CGContext.h（10.14 SDK）</li>
+<li>论文：Loop &amp; Blinn 2005（GPU Gems 3 第 25 章）；Green, Valve, SIGGRAPH 2007；Chlumský 2015 硕士论文与 msdfgen；Lengyel, JCGT 2017；Rong &amp; Tan, JFA, I3D 2006</li>
+<li>博客与仓库：Raph Levien font-rs（2016）、piet-gpu；Vello README/ARCHITECTURE/tile.rs/strip.rs；Patrick Walton Pathfinder（2017）；nical "A look at Pathfinder"（2019）；étagère；Will Dobbie（2016）；WebRender text-rendering.md；Behdad Esfahbod "text2024"；tonsky "Monitors"；Alacritty #4616；Chrome COLRv1、memory-safe fonts；Flutter Impeller README；HarfBuzz shaping plans</li>
+<li>Symbian 开源 <code>oss.FCL.sf.os.textandloc</code>；J2ME MIDP 2.0 <code>Font</code> 文档；Wikipedia：ClearType、Microsoft Reader、Pocket PC 2002、Palm OS、Nokia Pure、Symbian、Emoji、DynaComware、Bitstream、FreeType、Kindle、Bookerly、iPhone、Apple Color Emoji、Helvetica、Retina display、iOS 7、San Francisco、iPhone X、PenTile、Droid、Roboto、Noto、Source Han Sans、HarfBuzz、Skia、Nexus One、Galaxy S、WOFF</li>
+</ul>
+</section>
+<footer><p>本地副本：research/字体渲染变迁史与算法详解.md　·　姊妹篇：<a href="https://claude.ai/artifact/VX58y7PjeCY2ZscZGGhcRP">从 BitBLT 到着色器</a>、<a href="https://claude.ai/artifact/Gm6Fz44ChbEWzgZLb1323a">从帧缓冲到 GPU</a>、<a href="https://claude.ai/artifact/KaodE2u3PGsSshYsuvYNPj">NVIDIA 三十年</a></p></footer>
+</div>
