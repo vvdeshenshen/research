@@ -1,0 +1,554 @@
+<title>三瓦特里的三角形</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F2F3F4; --surface:#FAFBFB; --ink:#171A1C; --muted:#5B6267; --rule:#D4D9DC;
+  --accent:#D3562B; --accent-soft:#F7DDD2; --accent-ink:#A8401C;
+  --cool:#2C6E8F; --cool-soft:#D9E8EF;
+  --code:#E8EBEC;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121517; --surface:#1A1E21; --ink:#E6E9EA; --muted:#9BA4A9; --rule:#2B3236;
+    --accent:#F08A5E; --accent-soft:#4A2A1C; --accent-ink:#F5A684;
+    --cool:#6FB3D6; --cool-soft:#1C3340;
+    --code:#20262A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121517; --surface:#1A1E21; --ink:#E6E9EA; --muted:#9BA4A9; --rule:#2B3236;
+  --accent:#F08A5E; --accent-soft:#4A2A1C; --accent-ink:#F5A684;
+  --cool:#6FB3D6; --cool-soft:#1C3340;
+  --code:#20262A;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Manrope","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16.5px;line-height:1.75;padding-block:0 6rem;padding-inline:clamp(16px,4vw,40px)}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--accent-ink)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;margin:.5rem 0 1rem;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+.lede{font-size:1.08rem;max-width:66ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--muted)}
+/* era strip */
+.eras{display:grid;grid-template-columns:repeat(auto-fit,minmax(11em,1fr));gap:4px;margin:2rem 0 .5rem}
+.era{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:.65rem .7rem;font-size:.76rem;line-height:1.4}
+.era b{display:block;font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--accent);letter-spacing:.06em;margin-bottom:.2rem}
+.era .t{font-weight:700;font-size:.86rem;margin-bottom:.3rem}
+.era dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.1rem .5rem;font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--muted)}
+.era dt{color:var(--muted)} .era dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums}
+.bars{margin:1.25rem 0 .25rem;font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted)}
+.bar{display:grid;grid-template-columns:7em 1fr 6em;align-items:center;gap:.6rem;margin:.3rem 0}
+.bar i{display:block;height:10px;border-radius:2px;background:var(--accent)}
+.bar i.c{background:var(--cool)}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:960px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.8rem;font-family:"IBM Plex Mono",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+section{padding-block:3rem 0}
+h2{font-size:1.7rem;font-weight:800;margin:0 0 1rem;letter-spacing:-.02em;text-wrap:balance}
+h2 .num{font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--accent);display:block;letter-spacing:.14em;margin-bottom:.35rem;font-weight:500}
+h3{font-size:1.12rem;font-weight:700;margin:2.2rem 0 .6rem;text-wrap:balance;padding-left:.7rem;border-left:3px solid var(--accent)}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:700}
+code{font-family:"IBM Plex Mono",monospace;font-size:.86em;background:var(--code);padding:.05em .35em;border-radius:3px}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:4px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:.78rem;line-height:1.55;max-width:100%}
+blockquote{margin:1.25rem 0;padding:.9rem 1.1rem;border-left:3px solid var(--accent);background:var(--surface);max-width:72ch}
+blockquote p{margin:.3rem 0;color:var(--muted)}
+.tbl{overflow-x:auto;margin:1.1rem 0 1.6rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.83rem;line-height:1.45;min-width:640px}
+th,td{padding:.5rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:700;font-size:.73rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap}
+td:first-child{font-weight:600}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Mobile real-time rendering · 2001–2026</div>
+  <h1>三瓦特里的三角形：移动端 3D 渲染发展史</h1>
+  <p class="lede">二十年里移动 GPU 算力涨了上千倍，带宽只涨了几十倍，功耗预算一直是 3–6 W。这份调研按五个时代记录硬件算力、渲染技术与各时代的数量指标，并给出几何与光照的算力需求模型。</p>
+  <div class="meta"><span>整理：2026-10-30</span><span>数据来自厂商文档、引擎文档、演讲与规格表</span><span>"推导"与"未核实"随文标注</span></div>
+
+  <div class="bars">
+    <div class="bar"><span>峰值 FP32</span><i style="width:100%"></i><span>约 1500×</span></div>
+    <div class="bar"><span>像素/帧</span><i class="c" style="width:1.4%"></i><span>20×</span></div>
+    <div class="bar"><span>显存带宽</span><i class="c" style="width:4.7%"></i><span>约 70×</span></div>
+    <div class="bar"><span>持续功耗</span><i class="c" style="width:.35%"></i><span>5×</span></div>
+    <div style="margin-top:.4rem">2009 → 2026 旗舰，对数外的线性比例；算力与带宽的剪刀差决定了移动渲染的全部技术选择</div>
+  </div>
+
+  <div class="eras">
+    <div class="era"><b>I · 2001–2008</b><div class="t">软件与固定功能</div><dl><dt>算力</dt><dd>无 ALU</dd><dt>三角形</dt><dd>数千/帧</dd><dt>draw</dt><dd>数十</dd><dt>光源</dt><dd>1–2 顶点</dd></dl></div>
+    <div class="era"><b>II · 2009–2013</b><div class="t">可编程着色器</div><dl><dt>算力</dt><dd>6–150 GF</dd><dt>三角形</dt><dd>1–10 万顶点</dd><dt>draw</dt><dd>几十–几百</dd><dt>光源</dt><dd>1 逐像素</dd></dl></div>
+    <div class="era"><b>III · 2014–2018</b><div class="t">PBR 与统一着色</div><dl><dt>算力</dt><dd>115–730 GF</dd><dt>三角形</dt><dd>≤ 50 万</dd><dt>draw</dt><dd>≤ 700 / 4000</dd><dt>光源</dt><dd>1 + 4</dd></dl></div>
+    <div class="era"><b>IV · 2019–2022</b><div class="t">集群光照与动态分辨率</div><dl><dt>算力</dt><dd>0.7–2.2 TF</dd><dt>三角形</dt><dd>50–100 万+</dd><dt>draw</dt><dd>500–700</dd><dt>光源</dt><dd>1 + 32 → 数百</dd></dl></div>
+    <div class="era"><b>V · 2023–2026</b><div class="t">光追与神经渲染</div><dl><dt>算力</dt><dd>2–7 TF</dd><dt>三角形</dt><dd>数百万</dd><dt>draw</dt><dd>数千</dd><dt>光源</dt><dd>数百–1024</dd></dl></div>
+  </div>
+</header>
+</div>
+
+<nav class="toc"><ol><li><a href="#s0">总览</a></li><li><a href="#s1">硬件算力演进</a></li><li><a href="#s2">渲染技术变迁</a></li><li><a href="#s3">算力需求</a></li><li><a href="#s4">数量指标</a></li><li><a href="#s5">汇合与判断</a></li><li><a href="#s6">主要参考来源</a></li></ol></nav>
+
+<div class="wrap">
+<blockquote>
+<p>这份调研按五个时代追踪手机/平板上实时 3D 渲染的演变：GPU 算力与带宽、渲染技术（API、光照、阴影、架构、上采样、光线追踪）、以及各时代的数量指标（draw call、三角形、纹理、光源、pass、帧率、分辨率），并给出几何与光照的算力需求模型。数据来自 Arm/Qualcomm/Imagination/Apple 开发者文档、Unity/Unreal 官方文档、GDC/Unite 演讲、厂商发布材料与 Wikipedia 规格表。标注"推导"的数字是按公式算出的估计，"未核实"的是只有二手来源或厂商未公布的数字。整理日期：2026-10-30。</p>
+</blockquote>
+<section id="s0">
+<h2><span class="num">00</span>总览</h2>
+<h3>0.1 一句话结论</h3>
+<p>二十年里移动 GPU 的峰值 FP32 算力从约 2 GFLOPS 涨到约 3000–5000 GFLOPS（约 1400–2000 倍），而显存带宽只从 1.6 GB/s 涨到约 115 GB/s（约 70 倍），功耗预算始终是 3–6 W。于是移动渲染的每一次技术跃迁都围绕一个主题：<strong>用算力换带宽，把数据留在片上</strong>。分块渲染、片上延迟着色、无内存渲染目标、帧缓冲压缩、低分辨率渲染加上采样，都是这一主题的变奏。效果上，从 2007 年逐顶点光照、无阴影的几千三角形，走到 2024 年数百动态光源、级联阴影、PBR、TAA 与硬件光追的数百万三角形。</p>
+<h3>0.2 五个时代</h3>
+<div class="tbl"><table><thead><tr><th>时代</th><th>代表硬件</th><th>峰值 FP32</th><th>屏幕</th><th>API</th><th>典型技术</th><th>三角形/帧</th><th>draw call/帧</th><th>光源</th></tr></thead><tbody>
+<tr><td>I 软件与固定功能（2001–2008）</td><td>ARM9 软件光栅器、PowerVR MBX、ATI Imageon、Nvidia GoForce</td><td>无可编程 ALU；MBX 约 1–4 M 三角形/秒</td><td>176×208 → 320×480</td><td>OpenGL ES 1.0/1.1、Mascot Capsule</td><td>逐顶点 Gouraud、2 纹理单元、无阴影</td><td>数千</td><td>数十</td><td>1–2（规范上限 8）</td></tr>
+<tr><td>II 可编程着色器（2009–2013）</td><td>SGX535/543、Adreno 200–330、Mali-400、Tegra 2/3</td><td>6–150 GFLOPS</td><td>480×320 → 1080p</td><td>ES 2.0</td><td>逐像素 Blinn-Phong、法线贴图、光照贴图、投影/斑点阴影、PVRTC/ETC1</td><td>1–4 万顶点 → 10 万</td><td>几十 → 几百</td><td>1 个逐像素光，其余逐顶点或烘焙</td></tr>
+<tr><td>III PBR 与统一着色（2014–2018）</td><td>A7–A12、Adreno 420–630、Mali-T760–G76、Tegra K1/X1</td><td>115–730 GFLOPS</td><td>1080p → 1440p</td><td>ES 3.0/3.1/3.2、Metal（2014）、Vulkan（2016）</td><td>PBR（Epic 2014、Unity 5 2015）、级联阴影、HDR、片上延迟、ASTC、MSAA 免费</td><td>≤ 50 万（UE4 预算）</td><td>≤ 700（UE4）；Metal 4000+</td><td>1 方向光 + 4 点光</td></tr>
+<tr><td>IV 集群光照与动态分辨率（2019–2022）</td><td>A13–A16、Adreno 640–730、Mali-G77–G710</td><td>0.7–2.2 TFLOPS</td><td>1440p，90/120 Hz</td><td>Vulkan 1.1/1.3、Metal 3</td><td>Forward+/集群、移动延迟（UE 4.26）、TAA、动态分辨率、VRS、MetalFX（2022）</td><td>50 万 → 100 万+</td><td>500–700 常规</td><td>1 + 32（URP 移动）→ 数百（集群）</td></tr>
+<tr><td>V 光追与神经渲染（2023–2026）</td><td>A17 Pro–A20 Pro、Adreno 740–850、Immortalis-G715–G1 Ultra、Xclipse 920–960</td><td>2–7 TFLOPS</td><td>1440p+ 内部降采样</td><td>Vulkan 1.3/1.4、Metal 4</td><td>硬件光追（阴影/反射）、Lumen 实验、时域上采样（GSR 2、ASR）、帧生成、神经超采样（NSS）</td><td>数百万（Nanite 实验 600 万）</td><td>数千</td><td>数百至 1024（集群）</td></tr>
+</tbody></table></div>
+<h3>0.3 算力与带宽的剪刀差</h3>
+<div class="tbl"><table><thead><tr><th>指标</th><th>2009（iPhone 3GS / Snapdragon S1）</th><th>2025–26 旗舰</th><th>倍数</th></tr></thead><tbody>
+<tr><td>峰值 FP32</td><td>2–6 GFLOPS</td><td>2500–5000 GFLOPS</td><td>约 1000–2000×</td></tr>
+<tr><td>显存带宽</td><td>1.6–3.2 GB/s</td><td>77–115 GB/s</td><td>约 40–70×</td></tr>
+<tr><td>像素/帧</td><td>15 万</td><td>300 万+</td><td>20×</td></tr>
+<tr><td>每像素每帧 FLOP（30 fps）</td><td>700–1400</td><td>25000–30000</td><td>约 25×</td></tr>
+<tr><td>持续 GPU 功耗</td><td>约 1 W</td><td>3–6 W</td><td>5×</td></tr>
+</tbody></table></div>
+<p>带宽涨得比算力慢 20 倍以上，这是理解后面所有技术选择的钥匙。Arm 的估算：DRAM 访问约 120 mW 每 GB/s，一个 1080p60 的经典延迟渲染 G-buffer 要 5 GB/s，光是内存就吃掉 0.6 W，相当于 2013 年一部手机的整个 GPU 功耗预算。</p>
+</section>
+<section id="s1">
+<h2><span class="num">01</span>硬件算力演进</h2>
+<h3>1.1 前 GPU 时代与早期加速器（2001–2008）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>设备 / GPU</th><th>架构</th><th>性能</th><th>API</th><th>屏幕</th></tr></thead><tbody>
+<tr><td>2001</td><td>HI Corp Mascot Capsule Micro3D（J-Phone、索尼爱立信、摩托罗拉 J2ME/Symbian）</td><td>ARM7/ARM9 26–104 MHz 软件光栅器</td><td>未公布</td><td>私有；V4（2004）支持 OpenGL ES / JSR-184</td><td>120–176 像素宽</td></tr>
+<tr><td>2001 发布</td><td>PowerVR MBX / MBX Lite（Imagination）</td><td>TBDR 固定功能</td><td>IP 宣称 100 MHz 下 &gt; 400 万三角形/秒、&gt; 400 M 像素/秒</td><td>ES 1.1</td><td>—</td></tr>
+<tr><td>2004-01</td><td>ATI Imageon 2300（三星 SV360、LG）</td><td>IMR 固定功能</td><td>100 万三角形/秒，100 M 像素/秒</td><td>ES 1.0</td><td>320×240</td></tr>
+<tr><td>2003-10</td><td>Nokia N-Gage</td><td>ARM920T 104 MHz 软件</td><td>—</td><td>无</td><td>176×208</td></tr>
+<tr><td>2004-11</td><td>Dell Axim X50v（Intel 2700G = MBX）</td><td>TBDR</td><td>实测/宣称 83–94 万三角形/秒，84–150 M 像素/秒</td><td>ES 1.0</td><td>480×640</td></tr>
+<tr><td>2004-12</td><td>Sony PSP（参照）</td><td>定制</td><td>166 MHz，2.6 GFLOPS；索尼宣称 3300 万三角形/秒（未核实）</td><td>私有</td><td>480×272</td></tr>
+<tr><td>2003–05</td><td>Nvidia GoForce 4500/4800（Gizmondo、SE W900i、RAZR V3x）</td><td>IMR，4800 带可编程像素着色器</td><td>未公布</td><td>ES 1.x</td><td>240×320</td></tr>
+<tr><td>2006–07</td><td>Nokia N95（TI OMAP2420 + MBX）</td><td>TBDR，50–66 MHz</td><td>TI 称最高 200 万多边形/秒；3DMarkMobile06 37 fps</td><td>ES 1.1（N-Gage 2.0）</td><td>240×320</td></tr>
+</tbody></table></div>
+<h3>1.2 Apple A 系列（2007–2026）</h3>
+<p>Apple 从第一代 iPhone 起全部使用 TBDR（PowerVR，A11 起自研 TBDR）。显存总线至 A19 Pro 为 64 位。</p>
+<div class="tbl"><table><thead><tr><th>日期</th><th>SoC / GPU</th><th>工艺</th><th>核心 / ALU</th><th>频率</th><th>FP32 GFLOPS</th><th>带宽 GB/s</th><th>API</th><th>屏幕</th></tr></thead><tbody>
+<tr><td>2007-06</td><td>iPhone（S5L8900，MBX Lite）</td><td>90 nm</td><td>固定功能</td><td>约 60 MHz（未核实）</td><td>—</td><td>LPDDR1</td><td>ES 1.1</td><td>320×480</td></tr>
+<tr><td>2009-06</td><td>iPhone 3GS（SGX535）</td><td>65 nm</td><td>2 USSE / 16</td><td>200 MHz</td><td>6.4</td><td>LPDDR1 1.6</td><td>ES 2.0</td><td>320×480</td></tr>
+<tr><td>2010-06</td><td>A4（SGX535）</td><td>45 nm</td><td>2 / 16</td><td>200–250</td><td>6.4–8.0</td><td>3.2</td><td>ES 2.0</td><td>640×960</td></tr>
+<tr><td>2011-03</td><td>A5（SGX543MP2，iPad 2 / 4S）</td><td>45→32 nm</td><td>2 / 32</td><td>200</td><td>12.8</td><td>6.4</td><td>ES 2.0</td><td>640×960</td></tr>
+<tr><td>2012-09</td><td>A6（SGX543MP3）</td><td>32 nm</td><td>3 / 48</td><td>266</td><td>25.5</td><td>8.5</td><td>ES 2.0</td><td>640×1136</td></tr>
+<tr><td>2013-09</td><td>A7（PowerVR G6430 Rogue）</td><td>28 nm</td><td>4 簇 / 128</td><td>450</td><td>115</td><td>12.8</td><td>ES 3.0；Metal（2014）</td><td>640×1136</td></tr>
+<tr><td>2014-09</td><td>A8（GX6450）</td><td>20 nm</td><td>4 / 128</td><td>533</td><td>136</td><td>LPDDR3</td><td>ES 3.0 / Metal</td><td>750×1334</td></tr>
+<tr><td>2015-09</td><td>A9（GT7600）</td><td>14/16 nm</td><td>6 / 192</td><td>650</td><td>250（FP16 499）</td><td>25.6</td><td>Metal</td><td>750×1334</td></tr>
+<tr><td>2016-09</td><td>A10 Fusion</td><td>16 nm</td><td>6 / 192</td><td>900</td><td>346（691）</td><td>25.6</td><td>Metal 2</td><td>750×1334</td></tr>
+<tr><td>2017-09</td><td>A11 Bionic，首个自研 GPU，分块着色</td><td>10 nm</td><td>3 核 / 192</td><td>1066</td><td>409</td><td>34.1</td><td>Metal 2</td><td>1125×2436</td></tr>
+<tr><td>2018-09</td><td>A12</td><td>7 nm</td><td>4 / 256</td><td>1125</td><td>576（1152）</td><td>34.1</td><td>Metal 2</td><td>1125×2436</td></tr>
+<tr><td>2019-09</td><td>A13</td><td>7 nm</td><td>4 / 256</td><td>1350</td><td>691</td><td>34.1</td><td>Metal</td><td>1125×2436</td></tr>
+<tr><td>2020-09</td><td>A14</td><td>5 nm</td><td>4 / 256</td><td>1462</td><td>749</td><td>34.1</td><td>Metal</td><td>1170×2532</td></tr>
+<tr><td>2021-09</td><td>A15</td><td>5 nm</td><td>5 / 640</td><td>1338</td><td>1713</td><td>34.1</td><td>Metal 3</td><td>1170×2532</td></tr>
+<tr><td>2022-09</td><td>A16</td><td>4 nm</td><td>5 / 640</td><td>1398</td><td>1789</td><td>LPDDR5 51.2</td><td>Metal 3</td><td>1179×2556</td></tr>
+<tr><td>2023-09</td><td><strong>A17 Pro，硬件光追、网格着色</strong></td><td>3 nm N3B</td><td>6 / 768</td><td>约 1398</td><td>2147</td><td>51.2</td><td>Metal 3</td><td>1179×2556</td></tr>
+<tr><td>2024-09</td><td>A18 Pro</td><td>3 nm N3E</td><td>6 / 768</td><td>约 1490</td><td>2289</td><td>LPDDR5X 60</td><td>Metal 3</td><td>1206×2622</td></tr>
+<tr><td>2025-09</td><td>A19 Pro，每核心神经加速器，FP16 翻倍</td><td>3 nm N3P</td><td>6 / 768</td><td>1620</td><td>2488</td><td>76.8</td><td>Metal 4</td><td>1206×2622</td></tr>
+<tr><td>2026-09</td><td>A20 Pro，7 核，FP8 翻倍</td><td>2 nm N2</td><td>7 / 896</td><td>约 1620</td><td>约 2903（维基；Apple 称图形 +40%）</td><td>96 位 LPDDR6 约 115（未核实）</td><td>Metal 4</td><td>iPhone 18 Pro</td></tr>
+</tbody></table></div>
+<p>Apple 的厂商宣称：A17 Pro 光追"比 A16 软件光追快 4 倍"（演示 &lt; 10 fps → 30 fps）；A20 Pro "可持续 iPhone 16 Pro 两倍性能"，配更大均热板。</p>
+<h3>1.3 Qualcomm Adreno（IMR + FlexRender 分箱）</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>Adreno（SoC）</th><th>工艺</th><th>ALU</th><th>频率 MHz</th><th>FP32 GFLOPS（FP16）</th><th>三角形 M/s</th><th>填充 G 像素/s</th><th>API</th><th>带宽 GB/s</th></tr></thead><tbody>
+<tr><td>2008</td><td>200（S1 QSD8250，源自 ATI Imageon Z430 / Xenos）</td><td>65 nm</td><td>8</td><td>133</td><td>2.1（4.3）</td><td>22.9</td><td>0.13</td><td>ES 2.0</td><td>LPDDR1 约 1.6</td></tr>
+<tr><td>2010</td><td>205</td><td>45 nm</td><td>16</td><td>266</td><td>8.5</td><td>41–44</td><td>0.27</td><td>ES 2.0</td><td>LPDDR2</td></tr>
+<tr><td>2011</td><td>220</td><td>45 nm</td><td>32</td><td>266</td><td>17</td><td>88.7</td><td>0.53</td><td>ES 2.0</td><td>约 6.4</td></tr>
+<tr><td>2012</td><td>225</td><td>28 nm</td><td>32</td><td>400</td><td>25.6</td><td>133</td><td>0.8</td><td>ES 2.0</td><td></td></tr>
+<tr><td>2012-07</td><td><strong>320，首个统一着色器，ES 3.0</strong></td><td>28 nm</td><td>64</td><td>400</td><td>51</td><td>225</td><td>3.2</td><td>ES 3.0</td><td>8.5–12.8</td></tr>
+<tr><td>2013</td><td>330（800/801）</td><td>28 nm</td><td>128</td><td>578</td><td>148</td><td>325</td><td>4.6</td><td>ES 3.0</td><td>12.8</td></tr>
+<tr><td>2014</td><td>420（805）</td><td>28 nm</td><td>128</td><td>600</td><td>154</td><td>338</td><td>4.8</td><td>ES 3.1</td><td>25.6</td></tr>
+<tr><td>2015</td><td>430（810）</td><td>20 nm</td><td>192</td><td>630</td><td>242</td><td>404</td><td>5.0</td><td>ES 3.1</td><td>25.6</td></tr>
+<tr><td>2016</td><td><strong>530（820），Vulkan 1.0</strong></td><td>14 nm</td><td>256</td><td>624–653</td><td>319–334（668）</td><td>—</td><td>8.4</td><td>ES 3.2 / VK 1.0</td><td>29.9</td></tr>
+<tr><td>2017</td><td>540（835）</td><td>10 nm</td><td>256</td><td>710</td><td>364</td><td>&gt; 450</td><td>8.5</td><td>VK 1.0</td><td>29.9</td></tr>
+<tr><td>2018</td><td>630（845）</td><td>10 nm</td><td>512</td><td>710</td><td>727</td><td>—</td><td>11.4</td><td>VK 1.1</td><td>29.9</td></tr>
+<tr><td>2019</td><td>640（855）</td><td>7 nm</td><td>768</td><td>585–675</td><td>899–1037</td><td>—</td><td>10.8</td><td>VK 1.1</td><td>34.1</td></tr>
+<tr><td>2020</td><td>650（865）</td><td>7 nm</td><td>768</td><td>587–670</td><td>1029（2058）</td><td>—</td><td>16.1</td><td>VK 1.1</td><td>LPDDR5 44</td></tr>
+<tr><td>2021</td><td>660（888）</td><td>5 nm</td><td>768</td><td>840–900</td><td>1290–1382</td><td>—</td><td>21.6</td><td>VK 1.1</td><td>51.2</td></tr>
+<tr><td>2021-12</td><td>730（8 Gen 1）</td><td>4 nm</td><td>1024</td><td>818–900</td><td>1675–1843</td><td>—</td><td>28.8</td><td>VK 1.3</td><td>51.2</td></tr>
+<tr><td>2022-11</td><td><strong>740（8 Gen 2），硬件光追</strong></td><td>4 nm</td><td>1536</td><td>680–719</td><td>2089–2209（4418）</td><td>—</td><td>34.5</td><td>VK 1.3</td><td>LPDDR5X 68.3</td></tr>
+<tr><td>2023-10</td><td>750（8 Gen 3）</td><td>4 nm</td><td>1536</td><td>903–1000</td><td>2774–3072</td><td>—</td><td>48</td><td>VK 1.3</td><td>76.8</td></tr>
+<tr><td>2024-10</td><td>830（8 Elite），3 个切片，12 MB 高性能内存</td><td>3 nm</td><td>1536</td><td>1100–1200</td><td>3379–3686</td><td>—</td><td>57.6</td><td>VK 1.3</td><td>84.8</td></tr>
+<tr><td>2025-09</td><td>840（8 Elite Gen 5），18 MB HPM</td><td>3 nm N3P</td><td>1536</td><td>1200</td><td>3686–3994（7987）</td><td>—</td><td>62.4</td><td>VK 1.3</td><td>84.8</td></tr>
+<tr><td>2026-09</td><td>845 / 850（8 Elite Gen 6 / Extreme），"重新架构"+35%/+44%，Extreme 加矩阵核心与 Adreno Neural Fusion（AI 上采样/帧生成）</td><td>2 nm</td><td>6 切片（泄露）</td><td>约 1450（未核实）</td><td>约 4454（未核实）</td><td>—</td><td>69.6</td><td>VK 1.4</td><td>LPDDR6 约 114</td></tr>
+</tbody></table></div>
+<h3>1.4 Arm Mali / Immortalis（TBR）与其他 Android GPU</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>GPU（示例 SoC）</th><th>架构</th><th>示例配置 → GFLOPS</th><th>API</th><th>备注</th></tr></thead><tbody>
+<tr><td>2011-04</td><td>Mali-400 MP4（Exynos 4210，Galaxy S II）</td><td>Utgard，顶点/像素分离</td><td>MP4 @266 MHz → 9.6</td><td>ES 2.0</td><td>单几何处理器，三角形率不随 MP 数增长（MP4 @210 MHz 2300 万三角形/秒）</td></tr>
+<tr><td>2012-11</td><td>Mali-T604 MP4（Exynos 5250，Nexus 10）</td><td>Midgard，统一</td><td>@533 → 72.5</td><td>ES 3.0/3.1</td><td>2560×1600</td></tr>
+<tr><td>2015</td><td>T760 MP8（Exynos 7420）</td><td>Midgard</td><td>@772 → 302</td><td>ES 3.2 / VK 1.0</td><td>1440p</td></tr>
+<tr><td>2016–17</td><td>G71 MP20（Exynos 8895）</td><td><strong>Bifrost</strong>，索引驱动顶点着色</td><td>@546 → 262</td><td>VK 1.0</td><td>AFBC、事务消除</td></tr>
+<tr><td>2019</td><td>G76 MP12（Exynos 9820）</td><td>Bifrost，每核 24 FMA 通道</td><td>@702 → 404</td><td>VK 1.1</td><td></td></tr>
+<tr><td>2020</td><td>G77 MP11（Exynos 990）</td><td><strong>Valhall</strong>，每核 32 通道</td><td>@800 → 563</td><td>VK 1.1</td><td></td></tr>
+<tr><td>2021</td><td>G78 MP24（Kirin 9000）</td><td>Valhall</td><td>@759 → 1166</td><td>VK 1.1</td><td></td></tr>
+<tr><td>2022</td><td>G710 MP10（Dimensity 9000）</td><td>Valhall</td><td>@850 → 1088</td><td>VK 1.3</td><td></td></tr>
+<tr><td>2022-11</td><td><strong>Immortalis-G715 MC11（Dimensity 9200），硬件光追单元</strong></td><td>Valhall 4</td><td>@981 → 2762</td><td>VK 1.3</td><td>RTU 占核心面积 4%，比软件光追快 300%</td></tr>
+<tr><td>2023-11</td><td>Immortalis-G720 MC12（Dimensity 9300）</td><td>第五代，延迟顶点着色</td><td>@1300 → 3994</td><td>VK 1.3</td><td></td></tr>
+<tr><td>2024-10</td><td>Immortalis-G925 MC12（Dimensity 9400）</td><td>第五代</td><td>@1612 → 4953（频率未核实）</td><td>VK 1.3</td><td>光追 +52%</td></tr>
+<tr><td>2025-09</td><td>Mali G1-Ultra MC12（Dimensity 9500），RTUv2</td><td>Arm G1</td><td>@1716 → 5271（未核实）</td><td>VK 1.3</td><td>光追 2×，Immortalis 品牌退役</td></tr>
+</tbody></table></div>
+<div class="tbl"><table><thead><tr><th>日期</th><th>其他 GPU</th><th>架构</th><th>FP32 GFLOPS</th><th>备注</th></tr></thead><tbody>
+<tr><td>2010-06</td><td>PowerVR SGX540（Galaxy S / Nexus S）</td><td>TBDR</td><td>3.2–20（来源冲突）</td><td>ES 2.0</td></tr>
+<tr><td>2013-04</td><td>SGX544MP3（Galaxy S4）</td><td>TBDR</td><td>51</td><td>ES 3.0</td></tr>
+<tr><td>2010-01</td><td>Nvidia Tegra 2（ULP GeForce，4 PS + 4 VS）</td><td>IMR 非统一</td><td>约 5–7（冲突）</td><td>ES 2.0</td></tr>
+<tr><td>2013</td><td>Tegra 4（72 核）</td><td>IMR</td><td>97</td><td>ES 2.0/3.0</td></tr>
+<tr><td>2014</td><td>Tegra K1（192 Kepler 核）</td><td>IMR</td><td>290–365</td><td>ES 3.1、OpenGL 4.4、Vulkan</td></tr>
+<tr><td>2015</td><td>Tegra X1（256 Maxwell 核，Switch 2017）</td><td>IMR</td><td>512（FP16 1024）</td><td>ES 3.2 / Vulkan</td></tr>
+<tr><td>2022-01</td><td><strong>Samsung Xclipse 920（Exynos 2200，RDNA2，6 个光线加速器）</strong></td><td>IMR</td><td>1003</td><td>首个移动硬件光追</td></tr>
+<tr><td>2024-01</td><td>Xclipse 940（RDNA3，12 RA）</td><td>IMR</td><td>3407</td><td></td></tr>
+<tr><td>2025</td><td>Xclipse 950（16 RA，光追 +28%）</td><td>IMR</td><td>4092</td><td>3 nm GAA</td></tr>
+<tr><td>2026-Q1</td><td>Xclipse 960（Exynos 2600，RDNA4 系）</td><td>IMR</td><td>约 7025（维基，疑为双发射计法）</td><td>2 nm，VK 1.4</td></tr>
+</tbody></table></div>
+<h3>1.5 显存带宽与带宽节省技术</h3>
+<div class="tbl"><table><thead><tr><th>代际（JEDEC）</th><th>每引脚 MT/s</th><th>旗舰示例</th><th>总线</th><th>GB/s</th></tr></thead><tbody>
+<tr><td>LPDDR1（2006）</td><td>400</td><td>iPhone 3GS、Snapdragon S1</td><td>32 位</td><td>1.6</td></tr>
+<tr><td>LPDDR2（2009）</td><td>800–1066</td><td>A5 / A6</td><td>64 位</td><td>6.4 / 8.5</td></tr>
+<tr><td>LPDDR3（2012）</td><td>1600–2133</td><td>A7、Snapdragon 800</td><td>64 位</td><td>12.8</td></tr>
+<tr><td>LPDDR4（2014）</td><td>3200</td><td>A9、Snapdragon 810</td><td>64 位</td><td>25.6</td></tr>
+<tr><td>LPDDR4X（2017）</td><td>4267</td><td>A11–A15、Snapdragon 855</td><td>64 位</td><td>34.1</td></tr>
+<tr><td>LPDDR5（2019）</td><td>6400</td><td>A16、Snapdragon 888</td><td>64 位</td><td>51.2</td></tr>
+<tr><td>LPDDR5X（2021）</td><td>7500–10667</td><td>A18（60）、8 Gen 2（68）、8 Gen 3 / A19 Pro（77）、8 Elite / D9500（85）</td><td>64 位</td><td>60–85</td></tr>
+<tr><td>LPDDR6（2025）</td><td>10667–14400，24 位通道</td><td>8 Elite Extreme Gen 6（114）、A20 Pro 96 位（115，未核实）</td><td>96 位</td><td>约 115</td></tr>
+</tbody></table></div>
+<p>总线宽度 2010 年起就是 64 位，2026 年的跃升来自 96 位 LPDDR6 而非引脚速度。每家厂商都靠硬件避开带宽：</p>
+<ul>
+<li><strong>分块渲染</strong>：PowerVR/Apple TBDR 与 Mali TBR 把帧切成能放进片上 SRAM 的瓦片，深度与颜色流量留在片内。Mali 瓦片 16×16；Apple 32×32 / 32×16 / 16×16，A11 的 imageblock 32 KB；Adreno 的 GMEM 约 128 KB–1 MB 按 SKU 不同，驱动按渲染目标格式决定分箱尺寸。</li>
+<li><strong>Apple 无内存渲染目标</strong>（<code>MTLStorageMode.memoryless</code>）：深度、MSAA、G-buffer 附件只存在于瓦片内存，从不写 DRAM。</li>
+<li><strong>Arm 事务消除</strong>（按瓦片 CRC 跳过未变化写入）与 <strong>AFBC</strong> 无损帧缓冲压缩（宣称最高省 50% 系统带宽）。</li>
+<li><strong>Qualcomm FlexRender</strong>（Adreno 3xx 起）：按渲染目标选择分箱或直接渲染；Adreno 830 起加 12–18 MB 专用 GPU 高性能内存。</li>
+</ul>
+<h3>1.6 功耗与持续性能</h3>
+<div class="tbl"><table><thead><tr><th>芯片</th><th>测量</th><th>峰值 GPU/SoC 功耗</th><th>持续或能效</th></tr></thead><tbody>
+<tr><td>Apple A13</td><td>AnandTech GFXBench Aztec High</td><td>&gt; 6.2 W</td><td>18 fps/W（Aztec Normal，4.07 W）</td></tr>
+<tr><td>Apple A14</td><td>AnandTech Aztec Normal，降频后</td><td>3.88 W</td><td>19.95 fps/W</td></tr>
+<tr><td>Snapdragon 888 / Exynos 2100</td><td>AnandTech Aztec</td><td>约 8.0–8.4 W（"不可能持续"）</td><td>9.7 fps/W</td></tr>
+<tr><td>Snapdragon 8 Gen 1</td><td>Geekerwan Aztec</td><td>11.2 W</td><td>—</td></tr>
+<tr><td>Snapdragon 8 Gen 3</td><td>Geekerwan 3DMark Wild Life Extreme</td><td>8.2 W</td><td>30 分钟《原神》约 5.7 W</td></tr>
+<tr><td>Apple A17 Pro</td><td>Geekerwan WLE</td><td>10.9 W（Notebookcheck 最高 14 W）</td><td>30 分钟《原神》约 4.1 W</td></tr>
+</tbody></table></div>
+<p>经验法则：手机持续 GPU 功耗 3–5 W（整 SoC 约 5–8 W），峰值 8–14 W 只能维持数秒；桌面 GPU 250–450 W，约 50–100 倍。Arm 2018 年的优化指南以"2.5 W 系统功耗预算"为前提，2025 年 Vulkanised 演讲写的是"3–6 W"。压力测试下的稳定度因散热而异：ROG Phone 8 Pro 20 分钟降频不到 10%，Qualcomm 自家 8 Gen 3 参考机跌到峰值的约 50%。所以上表的峰值 GFLOPS 在实际游戏中只能兑现 50–100%。</p>
+<h3>1.7 光线追踪硬件</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>GPU</th><th>光追硬件</th><th>厂商宣称</th><th>软件</th></tr></thead><tbody>
+<tr><td>2022-01</td><td>Samsung Xclipse 920</td><td>6 个 RDNA2 光线加速器</td><td>首个移动硬件光追；无每秒光线数</td><td>Vulkan RT；发布时无游戏</td></tr>
+<tr><td>2022-06 发布 / 11 月上市</td><td>Arm Immortalis-G715（Dimensity 9200）</td><td>每着色器核心一个 RTU，约 4% 面积</td><td>比 Mali-G710 软件路径快 300%</td><td>Vulkan ray query；Arena Breakout 30 fps 演示</td></tr>
+<tr><td>2022-11</td><td>Qualcomm Adreno 740（8 Gen 2）</td><td>专用 RT 单元（数量未公布）</td><td>无吞吐数字</td><td>Justice Mobile、War Thunder 演示；Qualcomm 2023 年 5 月称 War Thunder Mobile 是"首个硬件光追的主要移动游戏"（软阴影）</td></tr>
+<tr><td>2023-09</td><td>Apple A17 Pro</td><td>6 核 GPU 内置 RT</td><td>"比 A16 软件光追快 4 倍"</td><td>Metal RT；Resident Evil Village（2023-10-30）、RE4、Death Stranding、AC Mirage（2024）</td></tr>
+<tr><td>2024-01</td><td>Xclipse 940</td><td>12 RA</td><td>—</td><td></td></tr>
+<tr><td>2024-10</td><td>Immortalis-G925</td><td>第二代 RTU</td><td>复杂物体 +52%；演示 UE5 Lumen</td><td></td></tr>
+<tr><td>2025-09</td><td>Mali G1-Ultra</td><td>RTUv2，单光线遍历</td><td>2× G925</td><td></td></tr>
+<tr><td>2026-09</td><td>Adreno 850</td><td>RT + 矩阵核心</td><td>Adreno Neural Fusion 上采样/帧生成，"最高省 40% 功耗"</td><td>Honkai: Star Rail、Diablo Immortal</td></tr>
+</tbody></table></div>
+<p>没有任何厂商公布移动 GPU 的每秒光线数或光线-三角形求交率，只有相对提升。</p>
+</section>
+<section id="s2">
+<h2><span class="num">02</span>渲染技术变迁</h2>
+<h3>2.1 图形 API 时间线</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>API / 里程碑</th><th>关键能力</th></tr></thead><tbody>
+<tr><td>2003-07-28</td><td>OpenGL ES 1.0</td><td>固定功能，无着色器</td></tr>
+<tr><td>2004-08-09</td><td>OpenGL ES 1.1</td><td>固定功能 + VBO、多纹理（iPhone 1/3G：MBX Lite，2 纹理单元，1024 最大纹理）</td></tr>
+<tr><td>2007-03</td><td>OpenGL ES 2.0 规范</td><td>可编程顶点/片段着色器（GLSL ES）</td></tr>
+<tr><td>2009-06-08</td><td>iPhone 3GS（SGX535）</td><td>首个 ES 2.0 iPhone；8 纹理单元；2048 最大纹理</td></tr>
+<tr><td>2010-05-20</td><td>Android 2.2 Froyo</td><td>框架级 ES 2.0；ETC1</td></tr>
+<tr><td>2012-08</td><td>OpenGL ES 3.0</td><td>MRT、遮挡查询、变换反馈、实例化、ETC2/EAC 强制；Android 4.3（2013-07）、iOS 7/A7（2013）</td></tr>
+<tr><td>2014-03-17</td><td>OpenGL ES 3.1</td><td>计算着色器、间接绘制</td></tr>
+<tr><td>2014-06</td><td><strong>Apple Metal</strong>（iOS 8，A7+）</td><td>低开销显式 API；WWDC 称 draw call 数"最高 10 倍"</td></tr>
+<tr><td>2014-11</td><td>Android 5.0 Extension Pack</td><td>曲面细分、几何着色器、ASTC</td></tr>
+<tr><td>2015-08-10</td><td>OpenGL ES 3.2</td><td>吸收 AEP</td></tr>
+<tr><td>2016-02-16</td><td><strong>Vulkan 1.0</strong></td><td>显式 API，渲染通道/子通道</td></tr>
+<tr><td>2016-08-22</td><td>Android 7.0 Nougat</td><td>平台 Vulkan 1.0</td></tr>
+<tr><td>2017-06-05</td><td>Metal 2（iOS 11）；A11 分块着色</td><td>参数缓冲、光栅顺序组；A11 加 imageblock 与 tile shader</td></tr>
+<tr><td>2018/2020/2022</td><td>Vulkan 1.1 / 1.2 / 1.3</td><td>Android 9 → 1.1；Android 13 发布设备预期 1.3</td></tr>
+<tr><td>2022-06</td><td>Metal 3（iOS 16）</td><td><strong>MetalFX</strong> 空间 + 时域上采样、网格着色器</td></tr>
+<tr><td>2022</td><td>Immortalis-G715、Adreno 740</td><td>硬件光追（Vulkan）</td></tr>
+<tr><td>2023-09</td><td>A17 Pro</td><td>Metal 光追</td></tr>
+<tr><td>2024-01</td><td>Chrome 121 Android</td><td>WebGPU</td></tr>
+<tr><td>2025-06</td><td>Metal 4（A14+）</td><td>MetalFX 帧插值 + 去噪上采样</td></tr>
+<tr><td>2025-09</td><td>iOS 26 Safari</td><td>WebGPU</td></tr>
+</tbody></table></div>
+<h3>2.2 纹理压缩与尺寸</h3>
+<div class="tbl"><table><thead><tr><th>格式</th><th>日期</th><th>平台</th><th>比特/像素</th></tr></thead><tbody>
+<tr><td>PVRTC</td><td>2003（Fenney）</td><td>PowerVR → 全部 iPhone</td><td>2 或 4</td></tr>
+<tr><td>ETC1</td><td>2005（Ericsson）</td><td>Android 2.2+ 通用</td><td>4，无 alpha</td></tr>
+<tr><td>ETC2/EAC</td><td>2012-08</td><td>ES 3.0 强制</td><td>4–8，加 RGBA/R/RG</td></tr>
+<tr><td>ASTC（Arm + AMD）</td><td>Khronos 2012-08 采纳</td><td>Android AEP（2014）、Apple A8（2014）、ES 3.2 硬件保证 LDR</td><td>0.89–8（4×4 = 8，6×6 = 3.56，8×8 = 2；Arm 推荐默认 5×5 或 6×6）</td></tr>
+<tr><td>Basis Universal / KTX 2.0</td><td>2019 / 2021</td><td>运行时转码到 ETC/ASTC/PVRTC/BC</td><td>—</td></tr>
+</tbody></table></div>
+<p>最大 2D 纹理尺寸：MBX 1024 → SGX535 2048 → SGX543/554 4096 → Metal Apple2（A8）8192 → Apple3–9（A9–A18）16384 → Apple10–11（A19、M5）32768。Metal 纹理绑定：Apple2–3 31 个，Apple4–5 96，Apple6+ 128；采样器 16；每渲染通道最多 8 个颜色目标。Unity 文档：未压缩纹理"占用近 8 倍内存"。</p>
+<h3>2.3 光照与阴影技术演进</h3>
+<div class="tbl"><table><thead><tr><th>时代</th><th>技术</th><th>证据</th></tr></thead><tbody>
+<tr><td>2003–2009</td><td>ES 1.x 固定功能逐顶点 Gouraud/Blinn-Phong，规范上限 8 光源；静态几何光照贴图</td><td>ES 1.x 规范</td></tr>
+<tr><td>2009–2013</td><td>ES 2.0 着色器逐像素 Blinn-Phong 与法线贴图；UE3 iOS（Epic Citadel 2010-09-01、Infinity Blade 2010-12-09）用光照贴图 + 逐像素高光</td><td>Wikipedia</td></tr>
+<tr><td>2014-09-10</td><td><strong>Epic《Physically Based Shading on Mobile》（Karis）</strong>：与桌面相同的 BaseColor/Metallic/Specular/Roughness；只有一个动态方向光，其余烘焙；解析环境 BRDF 近似代替 LUT（ES2 的 8 采样器限制使 LUT"不可接受"）；GGX 换成 Blinn 得到径向对称 Phong 波瓣</td><td>Epic 博客</td></tr>
+<tr><td>2015-03-03</td><td>Unity 5 Standard shader：metallic/specular PBS，BRDF1/2/3 三档保真度供移动端</td><td>Unity 文档</td></tr>
+<tr><td>阴影</td><td>无 → 斑点/投影阴影（ES 1.x）→ UE 4.5（2014-10）移动端可动方向光级联阴影，最多 2 级 → UE 4.9（2015-08）调制角色阴影 → UE 4.27 推荐静止光 CSM → 光追阴影（War Thunder Mobile 2023）</td><td>UE 发布说明</td></tr>
+<tr><td>HDR</td><td>半浮点渲染目标 + 瓦片内色调映射；Godot Forward Mobile 注明"有限 HDR"</td><td>Godot 文档</td></tr>
+<tr><td>IBL / SH</td><td>Unity 5 / UE4 移动端标配烘焙光照探针与反射探针</td><td></td></tr>
+</tbody></table></div>
+<h3>2.4 渲染架构：从前向到片上延迟、集群、光追与上采样</h3>
+<ul>
+<li><strong>TBDR/TBR 硬件</strong>使颜色/深度/模板留在片上；<code>DontCare</code>/memoryless 避免存储；MSAA 若不存储多采样缓冲则几乎免费（Unity 论坛实测 iPhone 8 存储多采样缓冲多花约 2.3 ms）。</li>
+<li><strong>片上延迟着色</strong>：iOS 6（2012）<code>EXT_shader_framebuffer_fetch</code> 暴露前一片段颜色；Arm <strong>Pixel Local Storage</strong>（<code>EXT_shader_pixel_local_storage</code>，<strong>2014</strong>，Mali-T760+，16 字节/像素）在瓦片内完成 G-buffer → 光照 → 合成；Vulkan 子通道（2016）与 <code>VK_EXT_shader_tile_image</code>、<code>VK_KHR_dynamic_rendering_local_read</code> 是 API 级后继；Metal 2 / A11（2017）分块着色阶段、显式 imageblock、光栅顺序组实现单通道分块延迟/Forward+。</li>
+<li><strong>引擎落地</strong>：UE 4.26（2020-12）移动延迟着色（iOS Beta、Android Vulkan 实验），不支持 MSAA，光照通道只能取 3 个颜色附件 + 1 个深度附件；UE5 延续并在 5.5 加移动 SSR。Unity：LWRP → URP（2019.3），SRP Batcher（2018.3 Metal/Vulkan），<strong>URP Forward+（集群）2022.2</strong>，Unity 6 Render Graph 自动合并原生渲染通道。</li>
+<li><strong>《原神》</strong>（2020-09-28）：移动与主机两套定制管线，"移动是主要开发平台"；主机管线 Unite 2020 / Unity Dojo 2021 分享：最多 8 级级联阴影（前 4 级每帧更新，每帧共 5 级）、视锥内支持 1024 个光源、屏幕 64×64 像素分块每块 16 个簇、近 100 个光源可投实时阴影、每像素 11 次泊松采样、PS4 Pro 原生 4K、标准 PS4 1440p 渲染 1080p 输出、AO 1/4 分辨率。移动端的具体数字未在公开演讲中给出。</li>
+<li><strong>VRS</strong>：Qualcomm 2021-07 在 Snapdragon 888 级暴露 <code>VK_KHR_fragment_shading_rate</code>；Arm 从 Immortalis-G715/Mali-G615 起。</li>
+<li><strong>Nanite</strong>：UE 5.x 到 5.6 的<strong>移动渲染器不支持 Nanite</strong>（Arm 2026 年 3 月博客："Nanite is not supported on the mobile renderer"；UE 不官方支持 Android SM6）。Arm 用桌面渲染器在 Mali 上的实验：Mori 演示 30 fps 下可见三角形超过 600 万；63.4 万三角形的树无 Nanite 199 ms、有 Nanite 26 ms。</li>
+<li><strong>Lumen</strong>：UE 5.4 起在高端 Android（Adreno 7xx、Mali G7xx、Xclipse 9xx）经 Vulkan SM5 桌面渲染器实验性支持，不在 iOS。</li>
+<li><strong>上采样与帧生成</strong>：Apple MetalFX（iOS 16，2022；空间 A13+，时域 A14+），Metal 4（2025）加帧插值；Qualcomm Snapdragon GSR 1.0（2023-06-29，空间单通道）、GSR 2.0（2024-10-21，时域 TAAU，8 Gen 3 上约 1–2 ms）；Arm <strong>Accuracy Super Resolution（ASR，FSR2 衍生，GDC 2025 年 3 月）</strong>，Epic 把它集成进 Fortnite 移动版"以减少 GPU 负载"；Arm <strong>Neural Super Sampling（NSS，2025-08 SIGGRAPH）</strong>配 Vulkan ML 扩展，首个硅片是 2026-09-08 发布的 Mali G2-Ultra NX；Qualcomm Adreno Frame Motion Engine（8 Gen 2 起，Gen 6 的 Neural Fusion 升级）。</li>
+<li><strong>光追落地</strong>：见 1.7。移动游戏通常每像素 ≤ 1 条光线、单一效果（阴影或反射）、内部分辨率减半或 1/4，再去噪上采样；Arm 的 Lumen 指南重点是缩小加速结构（排除小物体、实例化重复网格）而非提高光线数。</li>
+</ul>
+<h3>2.5 引擎时间线</h3>
+<div class="tbl"><table><thead><tr><th>日期</th><th>里程碑</th></tr></thead><tbody>
+<tr><td>2008</td><td>Unity iPhone（独立编辑器，2010 并入 Unity 3.0）</td></tr>
+<tr><td>2010-09-01 / 12-09</td><td>Epic Citadel（UE3 iOS 演示）/ Infinity Blade（首个 UE3 iOS 游戏）</td></tr>
+<tr><td>2014-03-19</td><td>UE4 19 美元/月，含 iOS/Android</td></tr>
+<tr><td>2015-03-03</td><td>Unity 5（PBS Standard shader）</td></tr>
+<tr><td>2018.3 / 2019.3</td><td>Unity SRP Batcher / URP</td></tr>
+<tr><td>2020-12</td><td>UE 4.26 移动延迟着色</td></tr>
+<tr><td>2021-02</td><td>Cocos Creator 3.0（3D、PBR、Vulkan/Metal）</td></tr>
+<tr><td>2022-04-05</td><td>UE5 发布；Nanite/Lumen 不支持移动</td></tr>
+<tr><td>2022.2</td><td>Unity URP Forward+</td></tr>
+<tr><td>2023</td><td>Godot 4 Forward Mobile 渲染器（Vulkan，单通道）</td></tr>
+<tr><td>2024–25</td><td>UE 5.4 实验性移动 Lumen；5.5 移动 SSR 与 FP16 模拟预览；Unity 6 Render Graph</td></tr>
+</tbody></table></div>
+<h3>2.6 显示与热约束</h3>
+<div class="tbl"><table><thead><tr><th>里程碑</th><th>日期</th></tr></thead><tbody>
+<tr><td>iPhone 320×480</td><td>2007</td></tr>
+<tr><td>iPhone 4 Retina 960×640</td><td>2010-06</td></tr>
+<tr><td>首个 1080p 手机：HTC J Butterfly / Droid DNA</td><td>2012-11/12</td></tr>
+<tr><td>首个 1440p：Oppo Find 7 / LG G3</td><td>2014</td></tr>
+<tr><td>首个 120 Hz：Razer Phone</td><td>2017-11</td></tr>
+<tr><td>iPhone 13 Pro ProMotion 120 Hz</td><td>2021-09</td></tr>
+</tbody></table></div>
+<p>厂商与引擎以"持续 30/60 fps"为目标：Unity 文档"移动端默认 30 fps"，建议"与其在 60 fps 榨干设备，不如 30 fps 折中"；Intel 2012 年的 ES 2.0 动态分辨率论文确立了离屏渲染再缩放的模式；Arm 的 ASR 数据（GDC 2025）明确把上采样当作热/功耗工具（Immortalis-G720 上省 20% 功耗）。</p>
+</section>
+<section id="s3">
+<h2><span class="num">03</span>算力需求</h2>
+<p>约定：1 FMA/MAD = 2 FLOP；"op"指一条标量着色器指令；标注"推导"的数字按公式与峰值规格算出，峰值按 FP32 FMA 计，忽略 FP16 翻倍与降频。</p>
+<h3>3.1 每顶点成本</h3>
+<div class="tbl"><table><thead><tr><th>操作</th><th>MAD</th><th>FLOP</th><th>备注</th></tr></thead><tbody>
+<tr><td>MVP × vec4 位置</td><td>16</td><td>32</td><td>4 个 dot4；编译器常用 3 个 dot4 + w=1 技巧 → 12 MAD</td></tr>
+<tr><td>法线 × mat3</td><td>9</td><td>18</td><td>归一化再加 3–5 op</td></tr>
+<tr><td>切线框架（N、T）</td><td>18</td><td>36</td><td></td></tr>
+<tr><td>世界空间位置（供光照）</td><td>12</td><td>24</td><td></td></tr>
+<tr><td>UV 拷贝/缩放偏移</td><td>2</td><td>4</td><td></td></tr>
+<tr><td>4 骨骼线性混合蒙皮（位置 + 法线）</td><td>约 90</td><td>约 180</td><td>另加 4×3 个 vec4 的调色板读取</td></tr>
+<tr><td><strong>典型静态网格顶点</strong></td><td>40–60</td><td><strong>80–120</strong></td><td></td></tr>
+<tr><td><strong>典型蒙皮角色顶点</strong></td><td>120–160</td><td><strong>250–320</strong></td><td></td></tr>
+</tbody></table></div>
+<p>吞吐公式：<code>顶点/秒 = ALU FLOPS × 利用率 / 每顶点 FLOP</code>。推导示例：SGX535（6.4 GFLOPS）在 64 FLOP/顶点下 1 亿顶点/秒；A7/Adreno 330（115 GFLOPS）18 亿顶点/秒。但厂商公布的三角形率低 10–100 倍（SGX535 2800 万三角形/秒、Mali-400 MP4 @210 MHz 2300 万/秒、@500 MHz 5500 万/秒），说明顶点吞吐受固定功能分块器、属性取回与内存限制，而非 ALU。</p>
+<p><strong>顶点带宽</strong>：<code>每帧字节 = 顶点数 × 每顶点字节 + 索引数 × 索引字节 (+ TBR 回写的 varying)</code>。最小布局（f16×4 位置、10:10:10:2 法线、f16×2 UV）16 字节；常见浮点布局 32 字节；完整布局 56–64 字节；索引 2 字节（"所有 GPU 只保证 16 位"，单网格 &lt; 65535 顶点）。Arm TBR 的顶点着色器输出不留在片上：位置与 varying"必须写出主存再由片段阶段读回"，所以一个 TBR 顶点约等于读属性 + 写位置与 varying（32–64 字节）+ 片段阶段重读。</p>
+<p><strong>索引驱动顶点着色（IDVS，Bifrost 2016）</strong>：顶点着色器拆成对所有顶点运行的位置着色器和只对裁剪/剔除后存活顶点运行的 varying 着色器；Arm 估计位置着色省约 40% 带宽、分块器内存消耗减少"最高 95%"。成本模型：<code>B_vertex ≈ B_pos_in + B_pos_out + v × (B_var_in + B_var_out)</code>，v 为可见顶点比例（视锥/背面剔除后通常 0.3–0.6；Arm 文档"预期一半三角形被背面测试剔除"）。</p>
+<p><strong>三角形尺寸规则</strong>：Arm "每图元片段数 ≥ 10"（2018 年指南 10–20）；Qualcomm "理想情况下每个光栅化三角形至少着色 4 像素"；Imagination "避免低于每图元 32 像素，亚像素三角形会被硬件丢弃"。由此 <code>三角形数 ≤ 着色像素数 / 10</code> → 1080p–1440p 约 20–37 万三角形/帧，与引擎预算吻合。</p>
+<h3>3.2 每像素光照成本</h3>
+<div class="tbl"><table><thead><tr><th>模型</th><th>工作量</th><th>约标量 op/光源</th></tr></thead><tbody>
+<tr><td>Lambert</td><td>N·L、饱和、乘颜色</td><td>5–8</td></tr>
+<tr><td>Blinn-Phong</td><td>H = normalize(L+V)（约 8）、N·H、pow（2–4 条特殊函数）、N·L、合成</td><td>18–25</td></tr>
+<tr><td>GGX PBR（Epic 移动形式）</td><td>D_GGX 约 8、V_SmithJointApprox 约 8、F_Schlick 约 6、三个点积 9、漫反射 3、合成 8</td><td><strong>40–60</strong>（含约 2 个特殊函数槽）</td></tr>
+<tr><td>点/聚光衰减</td><td>距离²、rcp、平滑窗</td><td>+8–12</td></tr>
+<tr><td>环境 BRDF LUT（桌面）</td><td>1 次依赖纹理取样</td><td>1 tex + 4</td></tr>
+<tr><td>EnvBRDFApprox（Karis 2014）</td><td>2 个 vec4 MAD、1 exp2、2 MAD</td><td>10–12，0 纹理</td></tr>
+<tr><td>IBL</td><td>1–2 次立方图采样 + EnvBRDF</td><td>1–2 tex + 15</td></tr>
+<tr><td>SH L2 辐照度（9 系数 × RGB）</td><td>二次型</td><td>约 12 MAD</td></tr>
+<tr><td>阴影图 1 次采样</td><td>取样 + 比较（常为硬件 PCF）</td><td>1 tex + 4</td></tr>
+<tr><td>PCF 4 / 16 次</td><td>4 / 16 次取样 + 权重</td><td>4 / 16 tex + 8 / 30</td></tr>
+<tr><td>级联选择（3–4 级）</td><td>投影到 1–2 级、分支</td><td>+10–15，+2–4 varying</td></tr>
+</tbody></table></div>
+<p>前向光照像素公式：</p>
+<pre>ops_pixel ≈ 基础(G 读取、法线解码、TBN: 20–30)
+          + N_dir × (BRDF + 阴影采样)
+          + N_local × (BRDF + 衰减 [+ 阴影])
+          + IBL (1–2 tex + 15)</pre>
+<p>UE 移动风格的像素：1 个带 4 次 PCF 的方向光 + 4 个点光 + IBL ≈ 25 + 70 + 240 + 20 ≈ <strong>300 标量 op + 7–9 次纹理取样</strong>，约 600 FLOP。</p>
+<p><strong>纹理成本</strong>（Arm）：三线性每采样 G72 约 2 周期、G77 约 0.5 周期；各向异性 ×4 再翻倍。所以 16 次 PCF 与整个 BRDF 同量级，这是移动阴影用 1–4 次采样加硬件比较的原因。</p>
+<h3>3.3 每像素周期预算（Arm 方法）</h3>
+<pre>周期/像素 = (GPU MHz × 1e6 × 着色器核心数) / (宽 × 高 × fps)
+可用 ≈ 85%，还要扣除顶点与固定功能</pre>
+<div class="tbl"><table><thead><tr><th>GPU 配置</th><th>分辨率@fps</th><th>周期/像素</th><th>×0.85</th><th>理想 FMA 指令/像素（推导）</th></tr></thead><tbody>
+<tr><td>Mali-T604 MP4 @450</td><td>2560×1600@60</td><td>7.3</td><td>6.2</td><td>—</td></tr>
+<tr><td>Mali-G72 MP2 @600（Arm 文档示例）</td><td>1080p@60</td><td>9.6</td><td>—</td><td>Arm："在这个预算里跑不了高端渲染管线"；720p30 可到 &gt; 40</td></tr>
+<tr><td>Mali-G76 MP12 @702（Exynos 9820）</td><td>1440p@60</td><td>38</td><td>32</td><td>约 770（24 通道）</td></tr>
+<tr><td>同上</td><td>1080p@60</td><td>68</td><td>58</td><td>约 1380</td></tr>
+<tr><td>Mali-G78 MP20 @760</td><td>1440p@60</td><td>69</td><td>58</td><td>约 1400</td></tr>
+<tr><td>Immortalis-G925 MC12 @约 1.6 GHz</td><td>1440p@60</td><td>88</td><td>74</td><td>约 2400（32 通道）</td></tr>
+</tbody></table></div>
+<p>Arm 的告诫：不应让 GPU 满载，实际片段 ALU 预算通常只有上表的 50–70%。</p>
+<h3>3.4 每像素 FLOP 预算随时代的变化</h3>
+<p><code>每像素每帧 FLOP = GFLOPS × 1e9 / (宽 × 高 × fps)</code>，GFLOPS 取峰值。</p>
+<p><strong>Apple</strong>：</p>
+<div class="tbl"><table><thead><tr><th>设备</th><th>GPU</th><th>GFLOPS</th><th>原生分辨率</th><th>百万像素</th><th>FLOP/像素 @30</th><th>@60</th><th>@120</th></tr></thead><tbody>
+<tr><td>iPhone 3GS（2009）</td><td>SGX535</td><td>6.4</td><td>480×320</td><td>0.15</td><td>1390</td><td>690</td><td>—</td></tr>
+<tr><td>iPhone 4（2010）</td><td>A4</td><td>6.4–8.0</td><td>960×640</td><td>0.61</td><td>350–430</td><td>170–220</td><td>—</td></tr>
+<tr><td>iPhone 4S（2011）</td><td>A5</td><td>12.8</td><td>960×640</td><td>0.61</td><td>690</td><td>350</td><td>—</td></tr>
+<tr><td>iPhone 5（2012）</td><td>A6</td><td>25.5</td><td>1136×640</td><td>0.73</td><td>1170</td><td>585</td><td>—</td></tr>
+<tr><td>iPhone 5s（2013）</td><td>A7</td><td>115</td><td>1136×640</td><td>0.73</td><td>5280</td><td>2640</td><td>—</td></tr>
+<tr><td>iPhone 6（2014）</td><td>A8</td><td>136</td><td>1334×750</td><td>1.00</td><td>4540</td><td>2270</td><td>—</td></tr>
+<tr><td>iPhone 7（2016）</td><td>A10</td><td>346</td><td>1334×750</td><td>1.00</td><td>11500</td><td>5760</td><td>—</td></tr>
+<tr><td>iPhone X（2017）</td><td>A11</td><td>409</td><td>2436×1125</td><td>2.74</td><td>4980</td><td>2490</td><td>—</td></tr>
+<tr><td>iPhone 12（2020）</td><td>A14</td><td>749</td><td>2532×1170</td><td>2.96</td><td>8430</td><td>4210</td><td>—</td></tr>
+<tr><td>iPhone 15 Pro（2023）</td><td>A17 Pro</td><td>2147</td><td>2556×1179</td><td>3.01</td><td>23700</td><td>11900</td><td>5940</td></tr>
+<tr><td>iPhone 17 Pro（2025）</td><td>A19 Pro</td><td>2488</td><td>2622×1206</td><td>3.16</td><td>26200</td><td>13100</td><td>6560</td></tr>
+</tbody></table></div>
+<p>注意两次 Retina 跳变：iPhone 4 与 iPhone X 各把像素数翻 4 倍/2 倍，<strong>单像素预算反而倒退一代</strong>。Fabien Sanglard 对 Infinity Blade 的分析：iPhone 4 要画 3GS 四倍的像素。</p>
+<p><strong>Qualcomm Adreno</strong>：</p>
+<div class="tbl"><table><thead><tr><th>GPU（SoC，年份）</th><th>ALU × MHz</th><th>FP32 GFLOPS</th><th>分辨率</th><th>FLOP/像素 @30</th><th>@60</th></tr></thead><tbody>
+<tr><td>Adreno 200（2009）</td><td>8 × 133</td><td>2.1</td><td>800×480</td><td>184</td><td>92</td></tr>
+<tr><td>Adreno 330（2013）</td><td>128 × 450</td><td>115</td><td>1080p</td><td>1850</td><td>925</td></tr>
+<tr><td>Adreno 530（2016）</td><td>256 × 624</td><td>319</td><td>1440p</td><td>2890</td><td>1440</td></tr>
+<tr><td>Adreno 640（2019）</td><td>768 × 585</td><td>899</td><td>1440p / 1080p</td><td>8120 / 14400</td><td>4060 / 7220</td></tr>
+<tr><td>Adreno 730（2022）</td><td>1024 × 818</td><td>1675</td><td>1440p</td><td>15100</td><td>7570</td></tr>
+<tr><td>Adreno 750（2023）</td><td>1536 × 903</td><td>2774</td><td>1440p</td><td>25100</td><td>12500</td></tr>
+<tr><td>Adreno 830（2024）</td><td>1536 × 1100</td><td>3379</td><td>1440p</td><td>30600</td><td>15300</td></tr>
+</tbody></table></div>
+<p>对照 3.2 节：一个约 300 op（约 600 FLOP）的前向 PBR 像素，在 2013 年的 1080p 手机上 30 fps 刚好塞满，2016–2019 年（Adreno 640 / A11）60 fps 从容，2023 年后 60 fps 有 1–1.5 万 FLOP/像素，足够延迟/集群多光源加后处理，这是 MegaLights 一类渲染器开始瞄准移动端的算力基础。</p>
+<h3>3.5 填充率、过绘与隐面消除</h3>
+<div class="tbl"><table><thead><tr><th>厂商</th><th>机制</th><th>对不透明过绘的效果</th></tr></thead><tbody>
+<tr><td>PowerVR / Apple</td><td>TBDR HSR：每瓦片在着色前做深度测试，与提交顺序无关</td><td>"无论 draw call 顺序如何都完全消除过绘"；Imagination 示例帧：提交 4.8 片段/像素，着色 1.2（−75%）；透明物体除外</td></tr>
+<tr><td>Arm Mali T62x+（2013）</td><td>Forward Pixel Kill：后来的不透明片段覆盖时杀死在途线程；FIFO 加宽杀伤窗口</td><td>部分；仍需前到后排序；late-Z 会禁用它</td></tr>
+<tr><td>Qualcomm Adreno</td><td>分箱 + 低分辨率 Z（A5x 起）+ 早期 Z，"以最高 4 倍填充率拒绝被遮挡像素"；FlexRender 按渲染目标切换</td><td>早期 Z 级别；仍建议前到后排序</td></tr>
+</tbody></table></div>
+<p>过绘成本模型：<code>着色片段 = 像素 × (1 + α_不透明过绘 × (1 − HSR 效率) + 透明层数)</code>。Arm/Qualcomm 工具的经验：全分辨率透明过绘平均 ≤ 1–2 层，粒子用 1/4 分辨率；每层透明在 TBR 上是瓦片内读改写（无 DRAM 流量），在 IMR 上是 8–16 字节/像素 DRAM 流量。</p>
+<h3>3.6 每像素带宽与能耗</h3>
+<pre>BW_frame = 像素 × [Σ 颜色写 + 深度写(若存储) + Σ G-buffer 读 + 纹理读 + 顶点/varying 流量]</pre>
+<div class="tbl"><table><thead><tr><th>情形</th><th>字节/像素</th><th>1080p@60</th><th>1440p@60</th></tr></thead><tbody>
+<tr><td>前向，单 RGBA8 目标，深度丢弃（TBR，DontCare/memoryless）</td><td>4</td><td>0.5 GB/s</td><td>0.9 GB/s</td></tr>
+<tr><td>+ 存储深度</td><td>8</td><td>1.0</td><td>1.8</td></tr>
+<tr><td><strong>IMR 经典延迟：4×RGBA8 + D32 写（20 B）再读回（20 B）</strong></td><td>40</td><td><strong>5.0 GB/s</strong></td><td>8.8</td></tr>
+<tr><td>同上在 TBR 上用 PLS / 子通道 / imageblock</td><td>约 4</td><td>0.5</td><td>0.9</td></tr>
+<tr><td>IMR 4×MSAA，颜色 + 深度 4 采样写出</td><td>32</td><td>4.0（+ 解析读 32）</td><td>7.1</td></tr>
+<tr><td>TBR 4×MSAA，memoryless + resolve 存储动作</td><td>4</td><td>0.5</td><td>0.9</td></tr>
+</tbody></table></div>
+<p><strong>带宽即功耗</strong>：Arm 的 DRAM 估算约 120 mW 每 GB/s；早期估算 150 pJ/字节，即 4–8 GB/s ≈ 0.6–1.2 W，"足以吃掉整个移动 GPU 功耗预算"。Horowitz（ISSCC 2014，45 nm）：DRAM 访问约 640 pJ 到 1.3–2.6 nJ 每 64 位，8 KB SRAM 约 10 pJ，FP32 乘法约 3.7 pJ，整数加约 0.1 pJ，即 DRAM 访问约为一次浮点运算的 100–200 倍。5 GB/s 的 G-buffer 在 A6 上超过整条总线的一半，在 2025 年旗舰上仍占 7–10%。"MSAA 在 TBDR 上免费"的准确含义是免 DRAM 流量：瓦片内存每像素大 4 倍，瓦片缩小，边缘像素仍着色 N 个采样。</p>
+<h3>3.7 光照技术成本比较</h3>
+<div class="tbl"><table><thead><tr><th>技术</th><th>每屏幕像素着色成本</th><th>带宽</th><th>几何通道</th><th>规模关系</th></tr></thead><tbody>
+<tr><td>前向，逐物体光源列表</td><td>过绘 × (基础 + Σ 光源 BRDF)</td><td>4–8 B/px</td><td>1（可选深度预通道）</td><td>O(物体 × 触及光源)；UE4 移动端每图元最多 4 个动态点光，无点光阴影</td></tr>
+<tr><td>延迟（G-buffer）</td><td>G 通道约 20–40 op × 过绘；光照通道 Σ 光源(覆盖像素 × BRDF)</td><td>IMR 40 B/px；TBR/PLS 约 4 B/px</td><td>1</td><td>O(像素 × 每像素光源)，与物体数无关；MSAA 与透明棘手</td></tr>
+<tr><td>分块/集群（Forward+ / 集群延迟）</td><td>剔除：计算通道，16×16 块 1080p = 8160 块 × 100 光源 ≈ 80 万次测试 ≈ 10 MFLOP，可忽略；着色：基础 + Σ 簇内光源 BRDF</td><td>小光源列表缓冲</td><td>1（+ 深度预通道）</td><td>O(像素 × 平均每簇光源)；UE5 移动 LightGrid Forward+</td></tr>
+<tr><td>每光源阴影图</td><td>每光源/级联一次额外几何通道：顶点成本 × 投射者数 + 纯深度填充（1–2 周期/纹素）；采样 1–16 次/受光像素</td><td>2–4 B/纹素（2048² D16 = 8 MB/帧 = 0.5 GB/s@60）</td><td>+1 每光源，+1 每级联（CSM 3–4）</td><td>O(光源 × 投射者)</td></tr>
+<tr><td>烘焙光照贴图</td><td>1–2 次纹理取样（方向光照贴图 2 次 + 8 op）</td><td>只读纹理</td><td>0</td><td>1024² RGBA8 = 4 MB（ASTC 4×4 1 MB）；4096² = 64 MB 原始 / 16 MB ASTC</td></tr>
+<tr><td>光照探针 / SH L2</td><td>27 个浮点，约 12 MAD/像素</td><td>108 B/探针；32³ 网格 3.5 MB</td><td>0</td><td>O(1)</td></tr>
+<tr><td>IBL</td><td>1–2 tex + 15 op</td><td>128² RGBA16F 立方图链约 1 MB</td><td>0</td><td>O(1)</td></tr>
+</tbody></table></div>
+<p>盈亏平衡：当平均每像素光源数超过约 2–3 或物体数很多时，延迟/集群胜出。在 TBDR（Apple/PowerVR）上 HSR 已消除不透明过绘，前向的主要惩罚消失，延迟的收益只能来自光源数。Unite 2013 的 Arm 实测：同一场景 250 个光源逐像素 502 个 draw call、4×250 个光源 1198 个 draw call，逐顶点 270 个 draw call，逐像素耗时 5 倍。</p>
+<h3>3.8 光线追踪成本</h3>
+<p>每条相干主/阴影光线的 BVH 遍历约 20–60 次包围盒测试 + 5–20 次三角形测试，软件实现每次包围盒测试 10–30 FLOP，即每光线 1–3 kFLOP，但真正的瓶颈是高度发散的内存访问；硬件 RTU 把盒/三角形测试做成固定功能。成本模型：<code>光线/帧 = (W × H / s²) × rpp × 效果数</code>；1440p、s = 2、1 rpp、2 个效果 → 180 万光线/帧 = 1.1 亿光线/秒 @60 fps。即使 1–2 G 光线/秒的 RTU 也不是限制，BLAS/TLAS 构建与重拟合（每个动态物体每帧）和不相干内存流量才是。</p>
+</section>
+<section id="s4">
+<h2><span class="num">04</span>数量指标的变迁：draw call、三角形、纹理、光源、pass</h2>
+<h3>4.1 引擎与厂商指南（按时代，均引自原文）</h3>
+<div class="tbl"><table><thead><tr><th>时代 / 文档</th><th>指标</th><th>原文要点</th></tr></thead><tbody>
+<tr><td>Unity 3.x iOS 手册（约 2011）</td><td>顶点/帧</td><td>MBX 设备"顶点数保持在 10000 以下"；"iPhone 3GS 或更新设备每帧可见顶点不超过 40000"</td></tr>
+<tr><td>同上</td><td>逐像素光</td><td>"避免一个物体被超过一个逐像素光照亮"；烘焙"快 2–3 倍（如 2 个逐像素光）"</td></tr>
+<tr><td>同上</td><td>纹理</td><td>iOS 尽量用 PVRTC，否则 16 位优于 32 位，带宽减半；mediump 约比 highp 快 2 倍，lowp 约快 4 倍</td></tr>
+<tr><td>Unity 3.5 角色建模指南（2011）</td><td>角色面数</td><td>移动端"每网格 300–1500 多边形"；桌面 1500–4000；骨骼"移动端 30 以下"；"2–3 个材质"</td></tr>
+<tr><td>Unity 3.5 iOS 硬件页</td><td>内存 / TMU</td><td>MBX 设备 128 MB，MBX "每片段 2 纹理"；3GS 256 MB；iPhone 4 512 MB</td></tr>
+<tr><td>Unity 4.3 移动优化实践指南（2013）</td><td>draw call</td><td>"移动端每帧不要超过几百个 draw call"</td></tr>
+<tr><td>同上</td><td>顶点</td><td>"iPad 2 在约 10 万顶点配复杂着色器时变得明显"</td></tr>
+<tr><td>同上</td><td>填充率 / 光源</td><td>"移动端本质上受填充率限制（填充率 = 屏幕像素 × 着色器复杂度 × 过绘）"；"基本只有方向光该是逐像素，其余逐顶点"</td></tr>
+<tr><td>Unity 5.5–2018.x 手册</td><td>顶点</td><td>"移动端目标不超过 10 万顶点"；PC 20 万–300 万</td></tr>
+<tr><td>Unity 2021 移动优化电子书</td><td>帧率 / 批处理 / 纹理</td><td>"Unity 移动端默认 30 fps"；动态批处理"少于 900 个顶点属性、不超过 300 个顶点"；"每个相机最多 1 ms CPU"（低端）；未压缩"占近 8 倍内存"；iOS A7 以下用 PVRTC，Android 2016 前用 ETC2</td></tr>
+<tr><td>Unite 2013（Arm）</td><td>带宽</td><td>桌面"&gt; 100 GB/s"对移动"约 5 GB/s"</td></tr>
+<tr><td>UE3/UDK 移动设计（2010–11）</td><td>角色</td><td>"Infinity Blade 角色约 8k 面 3k 顶点"；"每个网格一个 draw call"（仅搜索摘要可见）</td></tr>
+<tr><td><strong>UE4 移动性能指南</strong></td><td>draw call</td><td>"整个场景的 draw call 对任一视图应 ≤ 700"</td></tr>
+<tr><td>同上</td><td>三角形</td><td>"整个场景三角形数对任一视图应 ≤ 50 万。这是 iPad 4 与 iPad Air 上能达到 30 fps 的最大面数"</td></tr>
+<tr><td>同上</td><td>采样器 / 光源 / 纹理</td><td>"5 个纹理采样器可用"（ES3.1 后 16）；"单个方向光，设为 Stationary"；可动点光默认 0，最多 4；纹理用 2 的幂（256/512/1024）</td></tr>
+<tr><td>同上</td><td>分辨率 / 后处理</td><td>r.MobileContentScaleFactor：iOS 1.0 非 Retina、2.0 原生、3.0 iPhone 6+；Android 1.0 = 1280×720、2.0 = 2560×1440；后处理"某些设备默认设置可花 60 ms 以上"；"过绘可使帧 GPU 时间翻倍或更多"</td></tr>
+<tr><td>UE5 移动最佳实践</td><td>draw call</td><td>"Galaxy Tab S6 约 700，低端硬件少于 500"；HMI 场景"Tab S6 100 个，最好少于 50"</td></tr>
+<tr><td>UE5 移动延迟</td><td>G-buffer</td><td>光照通道"只能取 3 个颜色附件和 1 个深度附件"；不支持 MSAA</td></tr>
+<tr><td>Arm 图形内容优化建议（102643）</td><td>周期预算</td><td>Mali-G72 MP2 @600 MHz 1080p60 = 9.6 周期/像素；720p30 超过 40；"预期一半三角形被背面剔除"</td></tr>
+<tr><td>Arm 论坛（Peter Harris）</td><td>draw call / 图元</td><td>"多数移动设备每帧约 500 个 draw call，高端可更多"；"每图元片段数高于 10"</td></tr>
+<tr><td>Arm 2018 优化指南</td><td>带宽 / ASTC / 功耗</td><td>"通常推荐 2 GB/s"；ASTC 5×5 或 6×6 默认；各向异性"高于 2 要非常有选择"；"2.5 W 系统功耗预算"</td></tr>
+<tr><td>Arm Frame Advisor 示例帧</td><td>每帧</td><td>"65.7 万图元，426 个 draw call，16 个渲染通道"</td></tr>
+<tr><td>Arm Vulkanised 2025</td><td>功耗</td><td>"3–6 W 预算"</td></tr>
+<tr><td>Qualcomm Adreno 最佳实践</td><td>三角形 / 索引 / MSAA</td><td>"每个三角形至少着色 4 像素"；UBO 上限 7372 字节；"MSAA×2 几乎免费"；"16× 各向异性可能慢 16 倍"；优先 8 位索引</td></tr>
+<tr><td>Imagination PowerVR 建议</td><td>三角形</td><td>避免"每图元低于 32 像素"，亚像素三角形被丢弃</td></tr>
+<tr><td>Apple WWDC 2014 Metal（603）</td><td>draw call</td><td>"Metal 提供最高 10 倍 draw call"；此前"每帧几百次，因为 CPU 只能吸收这么多"；Crytek 演示"iPad 上 4000 个 draw call"</td></tr>
+<tr><td>Google Android 几何指南</td><td>三角形 / 网格</td><td>单网格常见上限 65535 顶点；Armies 演示"每帧约 21 万三角形，稳定约 30 fps"；"三角形面积保持 10 像素以上"；士兵约 360 三角形，塔楼约 3000；LOD 每级减半</td></tr>
+<tr><td>Google Daydream VR（2019）</td><td>每帧</td><td>"100 个 draw call（每眼 50）"；"60 万顶点（每眼 30 万）"；"每着色器不超过 2 次纹理查询"；"2× MSAA 或更低"；孤立测试"每眼 100 万顶点 60 fps"</td></tr>
+</tbody></table></div>
+<h3>4.2 具体游戏数据</h3>
+<div class="tbl"><table><thead><tr><th>游戏（年份）</th><th>指标</th><th>数据</th></tr></thead><tbody>
+<tr><td>Infinity Blade（2010）</td><td>角色 / 像素</td><td>约 8k 面 3k 顶点；iPhone 3GS 153600 像素 → iPhone 4 614400 像素，"iPhone 4 必须画 3GS 四倍的像素"</td></tr>
+<tr><td>Real Racing 3（2013）</td><td>车辆面数</td><td>"30000 多边形，约为 Real Racing 2 的六倍"</td></tr>
+<tr><td>Vainglory（2014，Metal 发布会）</td><td>多边形 / 帧率</td><td>"屏幕上 130 万多边形，60 fps"；draw call 数未公布</td></tr>
+<tr><td>Crytek The Collectables（WWDC 2014）</td><td>draw call</td><td>"iPad 上超过 4000 个 draw call"</td></tr>
+<tr><td>Fortnite Mobile（2018–2020）</td><td>帧率 / AA</td><td>6.31 前 30 或 20 fps；60 fps 先限 iPhone XS/XR；2018 年 12 月 iPad Pro 60 fps，"4× MSAA 加回 iOS"；2020 年 1 月 iPad Pro 120 fps 但自动降到 Medium 画质，High 只到 60，Epic 只到 30</td></tr>
+<tr><td>Fortnite（UE 4.20 Proxy LOD，2018）</td><td>建筑三角形</td><td>"从 50820 降到 2880"；HLOD 再到 412</td></tr>
+<tr><td>PUBG Mobile</td><td>帧率</td><td>最高 90 fps 限部分设备；3.2 版（2024）加 120 fps</td></tr>
+<tr><td>Call of Duty Mobile（2020-09）</td><td>120 Hz</td><td>多人模式 120 Hz，与索尼 Xperia 5 II 合作调优</td></tr>
+<tr><td>《原神》主机管线（Unite 2020 / Unity Dojo 2021）</td><td>级联 / 光源 / 阴影 / 分辨率</td><td>最多 8 级级联，每帧更新 5 级，每级至少每 8 帧更新一次；视锥内 1024 个光源，64×64 像素分块 × 16 簇；近 100 个光源可投实时阴影；每像素 11 次泊松采样，半影掩码 1/4×1/4 分辨率把 2–2.6 ms 降到 1.3–1.7 ms；PS4 Pro 原生 4K，PS4 1440p 渲染 1080p 输出，AO 1/4 分辨率；移动端数字未公开</td></tr>
+<tr><td>《原神》iOS（2021-10）</td><td>帧率</td><td>2.2 版起支持 120 fps</td></tr>
+<tr><td>《原神》iPhone 15 Pro Max（2023）</td><td>帧率 / 功耗</td><td>最高画质 MetalFX 关 59.4 fps 4.2 W，开 58.7 fps +0.6 W</td></tr>
+<tr><td>王者荣耀（2022-09 / 2024-06）</td><td>帧率</td><td>S29 起 90/120 fps 模式，120 fps 限 iPhone 13/14 Pro；S36 向 8 款 iPad Pro 开放 90/120</td></tr>
+<tr><td>Resident Evil Village，iPhone 15 Pro（2023）</td><td>分辨率</td><td>最高 2796×1290 但性能严重受影响，"2340×1080 是甜点"；6 GB 显存余量；MetalFX Quality/Performance；是否稳 60 fps 各评测不一</td></tr>
+<tr><td>Assassin's Creed Mirage，iPhone 15 Pro（2024）</td><td>内部分辨率</td><td>Digital Foundry："约 300p"对 Xbox One "约 828p"；GSMArena "四分之一分辨率，1278×590"；锁 30 fps 有掉帧</td></tr>
+<tr><td>Diablo Immortal（2022）</td><td>帧率</td><td>30 与 60 fps 选项</td></tr>
+<tr><td>UE5 Nanite 移动实验（Arm，2026）</td><td>三角形</td><td>Mori 演示 30 fps 下可见三角形超过 600 万</td></tr>
+</tbody></table></div>
+<h3>4.3 指标进化总表</h3>
+<p>下表把各时代<strong>有来源</strong>的锚点并列，括号内是来源；空白表示未找到可信数字。</p>
+<div class="tbl"><table><thead><tr><th>指标</th><th>2008–2010</th><th>2013–2015</th><th>2018–2020</th><th>2023–2026</th></tr></thead><tbody>
+<tr><td>draw call / 帧</td><td>10–30（社区，3G 级）；"几百"是上限</td><td>"几百"（Unity 2013）；≤ 700（UE4，iPad 4/Air）；Metal 后 4000（Crytek）</td><td>约 500（Arm）；700 / &lt; 500（UE5 Tab S6 / 低端）；Frame Advisor 示例 426</td><td>数千（Vulkan/Metal 下 CPU 不再是瓶颈）</td></tr>
+<tr><td>三角形 / 帧</td><td>1–4 万顶点（Unity iOS）；MBX 1 万以下</td><td>10 万顶点（Unity iPad 2）；≤ 50 万三角形 @30 fps（UE4）</td><td>21 万 @30 fps 低端（Google）；65.7 万（Arm 示例）；130 万 @60（Vainglory 2014 宣称）</td><td>100 万+；Nanite 实验 600 万 @30</td></tr>
+<tr><td>角色面数</td><td>300–1500（Unity 移动）；约 8k 面（Infinity Blade）</td><td>3 万（Real Racing 3 车辆）</td><td>360（低端演示士兵）至数万</td><td>未公开（常见说法 3–10 万，未核实）</td></tr>
+<tr><td>动态光源</td><td>规范 8，实用 1–2 逐顶点</td><td>1 逐像素方向光 + 其余逐顶点/烘焙（Unity）；1 方向 + 4 点（UE4）</td><td>1 + 8/物体，32/相机移动端（URP）；256/相机桌面</td><td>Forward+ 256，无逐物体上限（URP）；集群 1024（原神主机）</td></tr>
+<tr><td>阴影</td><td>无 / 斑点 / 投影</td><td>CSM 最多 2 级（UE 4.5）；调制阴影（4.9）</td><td>4 级级联 + 16 张附加光阴影图集（URP）；PCF 4 tap / 5×5 / 7×7</td><td>8 级级联 + 100 个投影光源（原神主机）；硬件光追阴影</td></tr>
+<tr><td>最大纹理</td><td>1024（MBX）/ 2048（SGX535）</td><td>4096（SGX543）/ 8192（A8 Metal）</td><td>16384（A9–A18）</td><td>32768（A19）</td></tr>
+<tr><td>纹理压缩</td><td>PVRTC 2/4 bpp、ETC1 4 bpp</td><td>ETC2、ASTC 0.89–8 bpp（默认 5×5/6×6 ≈ 5.1/3.56）</td><td>ASTC 普及、Basis Universal</td><td>同</td></tr>
+<tr><td>纹理采样器 / 绑定</td><td>2（MBX）/ 8（SGX535）</td><td>5（UE4 ES2）/ 16（ES3.1）；Metal 31</td><td>Metal 96（A11）/ 128（A13+）</td><td>128</td></tr>
+<tr><td>渲染通道</td><td>1（前向）</td><td>前向 + 阴影 + 后处理</td><td>16（Arm 示例帧）；移动延迟 3 色 + 1 深度附件</td><td>加光追、上采样通道</td></tr>
+<tr><td>内部分辨率</td><td>原生 320×480 / 960×640</td><td>原生 720p–1080p，UE4 Content Scale 1.0–3.0</td><td>原神动态分辨率；Fortnite 画质档位换帧率</td><td>RE Village 2340×1080 + MetalFX；AC Mirage 约 300p 上采样</td></tr>
+<tr><td>帧率</td><td>30</td><td>30（Unity 默认，UE4 预算基准）</td><td>60（2018 iPhone XS）；90/120 esports 模式（2020–22）</td><td>120 常见；帧生成 60 → 120</td></tr>
+<tr><td>每像素 FLOP @30 fps</td><td>350–1400</td><td>1200–5000</td><td>5000–15000</td><td>23000–30000</td></tr>
+<tr><td>持续 GPU 功耗</td><td>约 1 W</td><td>2–3 W</td><td>3–5 W</td><td>4–6 W，峰值 10–14 W</td></tr>
+</tbody></table></div>
+<h3>4.4 效果提升对照</h3>
+<div class="tbl"><table><thead><tr><th>时代</th><th>画面上看得见的变化</th><th>背后的技术</th></tr></thead><tbody>
+<tr><td>I（2001–2008）</td><td>平面着色或逐顶点光照的低模，无阴影，纹理 128–256，颜色断层</td><td>固定功能 ES 1.x，2 纹理单元，16 位色</td></tr>
+<tr><td>II（2009–2013）</td><td>逐像素高光与法线贴图，烘焙光照贴图，斑点/投影阴影，第一批"主机级"画面（Infinity Blade）</td><td>ES 2.0 着色器，PVRTC/ETC1，一个逐像素光</td></tr>
+<tr><td>III（2014–2018）</td><td>金属/粗糙度材质，环境反射，级联软阴影，HDR 泛光，4× MSAA</td><td>PBR 移动近似、ASTC、片上延迟、Metal/Vulkan</td></tr>
+<tr><td>IV（2019–2022）</td><td>开放世界，数十到数百局部光，体积/后处理，稳定 60 fps 与 120 fps 模式</td><td>集群光照、TAA、动态分辨率、VRS、SRP Batcher</td></tr>
+<tr><td>V（2023–2026）</td><td>光追阴影/反射，桌面游戏移植（RE Village、AC Mirage），上采样后的高分辨率输出</td><td>硬件 RT、MetalFX/GSR/ASR、帧生成、神经超采样</td></tr>
+</tbody></table></div>
+</section>
+<section id="s5">
+<h2><span class="num">05</span>汇合与判断</h2>
+<ol>
+<li><strong>算力够了，带宽与功耗没有</strong>。2023 年后的旗舰每像素每帧有 1–3 万 FLOP，与 2013 年的桌面 GPU 相当，但 3–6 W 的功耗与不到 100 GB/s 的带宽让"桌面式"延迟渲染与高分辨率原生渲染仍不可行。所有移动特有的技术（分块、片上延迟、无内存目标、AFBC、动态分辨率、上采样、帧生成）都是在用算力和片上存储换 DRAM 流量。</li>
+<li><strong>数量指标的增长不均衡</strong>。三角形数增长约 100 倍（1 万 → 100 万+），draw call 增长约 100 倍（几十 → 数千，主要靠 Metal/Vulkan 消除 CPU 开销），光源数增长约 1000 倍（1 → 1024，靠集群），而内部分辨率在 2023 年后<strong>反而下降</strong>（AC Mirage 约 300p）。效果提升越来越多地来自光照模型与重建算法，而非原生像素。</li>
+<li><strong>移动端先于桌面做了的事</strong>：分块渲染、片上延迟着色、免 DRAM 的 MSAA、按功耗调度的动态分辨率。Apple 2017 年 A11 的分块着色与 Arm 2014 年的 Pixel Local Storage 比桌面的 Vulkan 子通道/动态渲染本地读取早。</li>
+<li><strong>硬件光追与神经渲染是当前边界</strong>。2022–2023 年三家都有了 RT 单元，但没有厂商公布光线吞吐，游戏只敢用 1 条光线/像素做一种效果；2025–2026 年的方向是把张量/矩阵单元放进 GPU（A19 Pro 神经加速器、Adreno 850 矩阵核心、Mali G2-Ultra NX），用神经超采样与帧生成继续"用算力换像素"。</li>
+<li><strong>未能核实、读者应自行查证的数字</strong>：SGX535 的 2800 万三角形/秒、各厂商光追吞吐、2026 年 Adreno 845/850 与 Xclipse 960 的 ALU 与频率、《原神》移动端内部分辨率与角色面数、Honkai: Star Rail 的 iOS 独占 120 fps。</li>
+</ol>
+</section>
+<section id="s6">
+<h2><span class="num">06</span>主要参考来源</h2>
+<ul>
+<li>Arm 开发者：GPU processing budget approach；Optimization advice for graphics content on mobile devices（102643）；The Mali GPU: An Abstract Machine part 2；Killing Pixels（Forward Pixel Kill）；Hidden surface removal methods；Pixel Local Storage on Mali；Deferred shading on mobile；Vulkan multipass at GDC 2017；Vulkan subpasses；How low can you go；Bandwidth savers；AFBC；Transaction Elimination；Mali-400 overview；Mali-G77 Valhall；Mali-G710；Immortalis-G715 developer overview；G925 与 G1-Ultra 新闻稿；Mali and Unreal Engine's Nanite（2026-03）；MegaLights on mobile；Lumen HWRT learning path；Frame Advisor learning path；Vulkanised 2025 Mobile Best Practices（P. Harris）；Unite 2013 与 2018 优化幻灯片</li>
+<li>Apple：WWDC 2014 Session 603（Metal）；Tech Talks 602–606（A11 tile shading）；Metal Feature Set Tables（2026-10 版）；memoryless、MSAA、tileHeight 文档；MetalFX；WWDC25 Session 211（Metal 4）；OpenGL ES Hardware Platform Guide for iOS</li>
+<li>Qualcomm：Adreno GPU on Mobile Best Practices；Game Developer Guide overview 与 FAQ；OnQ 博客（VRS 2021、硬件光追 2023、Snapdragon 8 Gen 3）；Snapdragon GSR 1.0/2.0；Snapdragon Summit 2026 材料</li>
+<li>Imagination：PowerVR Performance Recommendations（triangle size、draw call size、texture compression）；HSR efficiency；TBDR 文档</li>
+<li>Epic：Physically Based Shading on Mobile（Karis 2014）；UE 4.5 / 4.9 发布说明；UE 4.27 Lighting / Materials / Feature Levels for Mobile；UE4 Performance Guidelines for Mobile Devices；UE5 Optimization and development best practices for mobile；UE5 Mobile Deferred Shading；Lumen on Mobile；UE 4.20 Proxy LOD 博客；UDK Designing for Mobile</li>
+<li>Unity：3.5 手册（Optimizing Graphics Performance、Modeling Characters、iOS Hardware）；4.3 Practical guide to optimization for mobiles；2017.4 Optimizing graphics performance；Optimize your mobile game performance（2021）；URP 文档（light limits、Forward+ limitations、URP asset、shadows troubleshooting、Dynamic Resolution）；Mali system metrics 包文档；Unity Dojo 2021 原神分享（docswell）</li>
+<li>Google：Android Geometry 优化指南；Vertex memory bandwidth 指标；Daydream VR performance best practices；Chrome WebGPU 公告</li>
+<li>Khronos：OpenGL ES 各版本新闻稿；Vulkan 版本指南；Tile-based rendering best practices；KTX 2.0 新闻稿</li>
+<li>规格：Wikipedia（Apple silicon、Apple A17/A19、Adreno、Mali、Exynos、Tegra、PowerVR 产品列表、LPDDR、ClearType 等）；AnandTech（iPhone 5s GPU、Adreno 225、Bifrost、iPhone 11 Pro/12、SD888 vs Exynos 2100、Adreno X1）；Notebookcheck、Geekerwan（经 koc.com.tw）、Tom's Hardware、GSMArena、TechInsights、9to5Google、TechSpot</li>
+<li>游戏数据：Destructoid（Real Racing 3）；Cult of Mac（Vainglory）；GameSpot、9to5Mac、Macwelt（Fortnite）；Esports.net（PUBG Mobile）；Pocket-lint（CoD Mobile）；automaton、Wccftech（原神）；IT 之家、腾讯新闻（王者荣耀）；Wccftech、Macwelt、GSMArena、TechTribune/Digital Foundry（RE Village、AC Mirage）；Fabien Sanglard（Infinity Blade 填充率）</li>
+<li>能耗：Horowitz, "Computing's energy problem", ISSCC 2014；arXiv 1602.04183 能耗表；SemiEngineering；Intel Dynamic Resolution Rendering on OpenGL ES 2.0（2012）</li>
+</ul>
+</section>
+<footer><p>本地副本：research/移动端3D渲染发展史.md　·　姊妹篇：<a href="https://claude.ai/artifact/Gm6Fz44ChbEWzgZLb1323a">从帧缓冲到 GPU</a>、<a href="https://claude.ai/artifact/KaodE2u3PGsSshYsuvYNPj">NVIDIA 三十年</a>、<a href="https://claude.ai/artifact/VX58y7PjeCY2ZscZGGhcRP">从 BitBLT 到着色器</a>、<a href="https://claude.ai/artifact/Agh488WBCYMboxeQC65hVe">从点阵到着色器的字形</a></p></footer>
+</div>
