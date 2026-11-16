@@ -1,0 +1,783 @@
+<title>从光谱到像素</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a neutral, colour-managed viewer: neutral ground, one raspberry accent, teal second series; hero = real colour data (blackbody strip, OETF curves, mid-grey proof) */
+:root{
+  --bg:#F3F3F1; --surface:#FBFBFA; --ink:#1A1A1C; --muted:#5E5F63; --rule:#D7D7D3;
+  --accent:#B8336A; --accent-soft:#F3D9E3; --accent-ink:#8F2451;
+  --cool:#1F7A8C; --cool-soft:#D6E9ED;
+  --code:#E9E9E6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141416; --surface:#1C1C1F; --ink:#E8E8E6; --muted:#A0A0A5; --rule:#2E2E33;
+    --accent:#E8679B; --accent-soft:#4A1F31; --accent-ink:#F19BBE;
+    --cool:#5FBACB; --cool-soft:#15333A;
+    --code:#222226; color-scheme:dark
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141416; --surface:#1C1C1F; --ink:#E8E8E6; --muted:#A0A0A5; --rule:#2E2E33;
+  --accent:#E8679B; --accent-soft:#4A1F31; --accent-ink:#F19BBE;
+  --cool:#5FBACB; --cool-soft:#15333A;
+  --code:#222226; color-scheme:dark
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Sora","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:16.5px;line-height:1.75;padding-block:0 6rem;padding-inline:clamp(16px,4vw,40px)}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--accent-ink)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header.mast{padding-block:3.5rem 2rem;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:"DM Mono",monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;margin:.5rem 0 1rem;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+.lede{font-size:1.08rem;max-width:66ch;color:var(--muted);margin:0}
+.meta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-family:"DM Mono",monospace;font-size:.76rem;color:var(--muted)}
+.figs{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin:2rem 0 .5rem}
+@media (max-width:720px){.figs{grid-template-columns:1fr}}
+.fig{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:.9rem 1rem;min-width:0}
+.fig .cap{font-family:"DM Mono",monospace;font-size:.7rem;color:var(--muted);margin-top:.5rem;line-height:1.5}
+.fig b{display:block;font-family:"DM Mono",monospace;font-size:.72rem;color:var(--accent);letter-spacing:.08em;margin-bottom:.5rem}
+.bb{height:34px;border-radius:3px;border:1px solid var(--rule);
+  background:linear-gradient(90deg,#FF8100 0%,#FF8D15 6%,#FFA141 14%,#FFAE59 20%,#FFBF7A 30%,#FFD4A5 42%,#FFE7D0 55%,#FFEEE1 61%,#FFF9FE 70%,#EBECFF 78%,#D6DFFF 86%,#C0D1FF 93%,#ABC1FF 100%)}
+.ticks{display:flex;justify-content:space-between;font-family:"DM Mono",monospace;font-size:.66rem;color:var(--muted);margin-top:.3rem}
+.ticks span{font-variant-numeric:tabular-nums}
+.grey{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.9rem}
+.grey div{height:46px;border-radius:3px;border:1px solid var(--rule);display:flex;align-items:flex-end;padding:.25rem .4rem;font-family:"DM Mono",monospace;font-size:.64rem;line-height:1.3}
+svg.curves{width:100%;height:auto;display:block}
+svg.curves text{font-family:"DM Mono",monospace;font-size:8.5px;fill:var(--muted)}
+svg.curves .ax{stroke:var(--rule);stroke-width:1}
+svg.curves .grid{stroke:var(--rule);stroke-width:.5;stroke-dasharray:2 3}
+svg.curves path{fill:none;stroke-width:1.6}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-family:"DM Mono",monospace;font-size:.66rem;color:var(--muted);margin-top:.4rem}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:.3rem;border-radius:2px}
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}
+nav.toc ol{list-style:none;margin:0 auto;padding:0;max-width:960px;display:flex;gap:.25rem 1.1rem;overflow-x:auto;font-size:.8rem;font-family:"DM Mono",monospace;white-space:nowrap;scrollbar-width:none}
+nav.toc a{color:var(--muted);text-decoration:none;display:inline-block;padding-block:.65rem;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+section{padding-block:3rem 0}
+h2{font-size:1.7rem;font-weight:800;margin:0 0 1rem;letter-spacing:-.02em;text-wrap:balance}
+h2 .num{font-family:"DM Mono",monospace;font-size:.76rem;color:var(--accent);display:block;letter-spacing:.14em;margin-bottom:.35rem;font-weight:500}
+h3{font-size:1.12rem;font-weight:700;margin:2.2rem 0 .6rem;text-wrap:balance;padding-left:.7rem;border-left:3px solid var(--accent)}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3rem}
+li{margin-block:.35rem}
+strong{font-weight:700}
+code{font-family:"DM Mono",monospace;font-size:.86em;background:var(--code);padding:.05em .35em;border-radius:3px}
+pre{background:var(--code);padding:1rem 1.1rem;border-radius:4px;overflow-x:auto;font-family:"DM Mono",monospace;font-size:.78rem;line-height:1.55;max-width:100%}
+blockquote{margin:1.25rem 0;padding:.9rem 1.1rem;border-left:3px solid var(--cool);background:var(--surface);max-width:72ch}
+blockquote p{margin:.3rem 0;color:var(--muted)}
+.tbl{overflow-x:auto;margin:1.1rem 0 1.6rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.83rem;line-height:1.45;min-width:640px}
+th,td{padding:.5rem .65rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:700;font-size:.73rem;letter-spacing:.04em;color:var(--muted);background:var(--bg);white-space:nowrap}
+td:first-child{font-weight:600}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Colour science for rendering · CIE 1931 → ACES 2.0</div>
+  <h1>从光谱到像素：渲染所需的颜色理论</h1>
+  <p class="lede">渲染器里的每一个颜色值都在回答三个问题：它是哪个色彩空间里的数、它是线性光还是编码值、它最终要被映射到多亮的屏幕上。这份调研把色度学、传递函数、线性工作流、HDR 与色调映射、材质与光源颜色、引擎颜色管线串成一条线，并给出公式、矩阵与参数。</p>
+  <div class="meta"><span>整理：2026-11-16</span><span>公式与矩阵来自 CIE、ITU-R、IEC、SMPTE、Academy、Khronos 与引擎文档</span><span>"未核实"随文标注</span></div>
+
+  <div class="figs">
+    <div class="fig">
+      <b>普朗克黑体轨迹 · 1800 K → 20000 K</b>
+      <div class="bb" role="img" aria-label="黑体从 1800 K 到 20000 K 的颜色条，由普朗克光谱与 CIE 1931 配色函数积分得到"></div>
+      <div class="ticks"><span>1800</span><span>2700</span><span>4000</span><span>5500</span><span>6500</span><span>9000</span><span>20000 K</span></div>
+      <div class="grey">
+        <div style="background:#808080;color:#fff">sRGB 128 · 线性 21.6%</div>
+        <div style="background:#BCBCBC;color:#000">sRGB 188 · 线性 50%</div>
+      </div>
+      <div class="cap">上：普朗克光谱 × CIE 1931 配色函数积分后转 sRGB，各色温按最大通道归一；6500 K 处接近 D65 白。下：sRGB 的 128 只对应 21.6% 线性光，真正的"一半光"是 188。</div>
+    </div>
+    <div class="fig">
+      <b>传递函数 · 线性光 → 编码值</b>
+      <svg class="curves" viewBox="0 0 300 200" aria-label="sRGB、gamma 2.2、Rec.709、HLG、PQ 的光电传递函数曲线">
+        <line class="ax" x1="34" y1="178" x2="292" y2="178"/><line class="ax" x1="34" y1="10" x2="34" y2="178"/>
+        <line class="grid" x1="34" y1="94" x2="292" y2="94"/><line class="grid" x1="163" y1="10" x2="163" y2="178"/>
+        <text x="30" y="181" text-anchor="end">0</text><text x="30" y="97" text-anchor="end">0.5</text><text x="30" y="14" text-anchor="end">1.0</text>
+        <text x="163" y="192" text-anchor="middle">0.5</text><text x="292" y="192" text-anchor="end">1.0 线性</text>
+        <path d="M34.0,178.0 L35.3,167.8 L36.6,161.2 L37.9,156.4 L39.2,152.5 L40.5,149.1 L41.7,146.1 L43.0,143.4 L44.3,140.9 L45.6,138.6 L46.9,136.4 L48.2,134.3 L49.5,132.4 L50.8,130.5 L52.1,128.7 L53.3,127.0 L54.6,125.4 L55.9,123.8 L57.2,122.3 L58.5,120.8 L59.8,119.3 L61.1,117.9 L62.4,116.6 L63.7,115.3 L65.0,114.0 L66.2,112.7 L67.5,111.5 L68.8,110.3 L70.1,109.1 L71.4,108.0 L72.7,106.8 L74.0,105.7 L75.3,104.6 L76.6,103.6 L77.9,102.5 L79.2,101.5 L80.4,100.5 L81.7,99.5 L83.0,98.5 L84.3,97.6 L85.6,96.6 L86.9,95.7 L88.2,94.7 L89.5,93.8 L90.8,92.9 L92.1,92.0 L93.3,91.2 L94.6,90.3 L95.9,89.4 L97.2,88.6 L98.5,87.8 L99.8,86.9 L101.1,86.1 L102.4,85.3 L103.7,84.5 L105.0,83.7 L106.2,83.0 L107.5,82.2 L108.8,81.4 L110.1,80.7 L111.4,79.9 L112.7,79.2 L114.0,78.4 L115.3,77.7 L116.6,77.0 L117.9,76.3 L119.1,75.6 L120.4,74.9 L121.7,74.2 L123.0,73.5 L124.3,72.8 L125.6,72.1 L126.9,71.4 L128.2,70.8 L129.5,70.1 L130.8,69.5 L132.0,68.8 L133.3,68.2 L134.6,67.5 L135.9,66.9 L137.2,66.2 L138.5,65.6 L139.8,65.0 L141.1,64.4 L142.4,63.8 L143.6,63.2 L144.9,62.5 L146.2,61.9 L147.5,61.3 L148.8,60.8 L150.1,60.2 L151.4,59.6 L152.7,59.0 L154.0,58.4 L155.3,57.8 L156.6,57.3 L157.8,56.7 L159.1,56.1 L160.4,55.6 L161.7,55.0 L163.0,54.5 L164.3,53.9 L165.6,53.4 L166.9,52.8 L168.2,52.3 L169.5,51.7 L170.7,51.2 L172.0,50.7 L173.3,50.1 L174.6,49.6 L175.9,49.1 L177.2,48.6 L178.5,48.0 L179.8,47.5 L181.1,47.0 L182.3,46.5 L183.6,46.0 L184.9,45.5 L186.2,45.0 L187.5,44.5 L188.8,44.0 L190.1,43.5 L191.4,43.0 L192.7,42.5 L194.0,42.0 L195.2,41.5 L196.5,41.0 L197.8,40.6 L199.1,40.1 L200.4,39.6 L201.7,39.1 L203.0,38.6 L204.3,38.2 L205.6,37.7 L206.9,37.2 L208.2,36.8 L209.4,36.3 L210.7,35.8 L212.0,35.4 L213.3,34.9 L214.6,34.5 L215.9,34.0 L217.2,33.6 L218.5,33.1 L219.8,32.7 L221.0,32.2 L222.3,31.8 L223.6,31.3 L224.9,30.9 L226.2,30.5 L227.5,30.0 L228.8,29.6 L230.1,29.2 L231.4,28.7 L232.7,28.3 L234.0,27.9 L235.2,27.4 L236.5,27.0 L237.8,26.6 L239.1,26.2 L240.4,25.7 L241.7,25.3 L243.0,24.9 L244.3,24.5 L245.6,24.1 L246.8,23.7 L248.1,23.2 L249.4,22.8 L250.7,22.4 L252.0,22.0 L253.3,21.6 L254.6,21.2 L255.9,20.8 L257.2,20.4 L258.5,20.0 L259.8,19.6 L261.0,19.2 L262.3,18.8 L263.6,18.4 L264.9,18.0 L266.2,17.6 L267.5,17.2 L268.8,16.8 L270.1,16.4 L271.4,16.1 L272.6,15.7 L273.9,15.3 L275.2,14.9 L276.5,14.5 L277.8,14.1 L279.1,13.7 L280.4,13.4 L281.7,13.0 L283.0,12.6 L284.3,12.2 L285.5,11.9 L286.8,11.5 L288.1,11.1 L289.4,10.7 L290.7,10.4 L292.0,10.0" stroke="var(--accent)"/>
+        <path d="M34.0,178.0 L35.3,162.9 L36.6,157.3 L37.9,153.1 L39.2,149.6 L40.5,146.6 L41.7,143.9 L43.0,141.4 L44.3,139.1 L45.6,137.0 L46.9,135.0 L48.2,133.0 L49.5,131.2 L50.8,129.5 L52.1,127.8 L53.3,126.2 L54.6,124.7 L55.9,123.2 L57.2,121.8 L58.5,120.4 L59.8,119.0 L61.1,117.7 L62.4,116.4 L63.7,115.1 L65.0,113.9 L66.2,112.7 L67.5,111.5 L68.8,110.4 L70.1,109.3 L71.4,108.2 L72.7,107.1 L74.0,106.0 L75.3,105.0 L76.6,103.9 L77.9,102.9 L79.2,101.9 L80.4,100.9 L81.7,100.0 L83.0,99.0 L84.3,98.1 L85.6,97.2 L86.9,96.3 L88.2,95.4 L89.5,94.5 L90.8,93.6 L92.1,92.7 L93.3,91.9 L94.6,91.0 L95.9,90.2 L97.2,89.4 L98.5,88.5 L99.8,87.7 L101.1,86.9 L102.4,86.1 L103.7,85.4 L105.0,84.6 L106.2,83.8 L107.5,83.0 L108.8,82.3 L110.1,81.5 L111.4,80.8 L112.7,80.1 L114.0,79.3 L115.3,78.6 L116.6,77.9 L117.9,77.2 L119.1,76.5 L120.4,75.8 L121.7,75.1 L123.0,74.4 L124.3,73.8 L125.6,73.1 L126.9,72.4 L128.2,71.7 L129.5,71.1 L130.8,70.4 L132.0,69.8 L133.3,69.1 L134.6,68.5 L135.9,67.9 L137.2,67.2 L138.5,66.6 L139.8,66.0 L141.1,65.4 L142.4,64.7 L143.6,64.1 L144.9,63.5 L146.2,62.9 L147.5,62.3 L148.8,61.7 L150.1,61.1 L151.4,60.5 L152.7,60.0 L154.0,59.4 L155.3,58.8 L156.6,58.2 L157.8,57.7 L159.1,57.1 L160.4,56.5 L161.7,56.0 L163.0,55.4 L164.3,54.8 L165.6,54.3 L166.9,53.7 L168.2,53.2 L169.5,52.7 L170.7,52.1 L172.0,51.6 L173.3,51.0 L174.6,50.5 L175.9,50.0 L177.2,49.4 L178.5,48.9 L179.8,48.4 L181.1,47.9 L182.3,47.4 L183.6,46.8 L184.9,46.3 L186.2,45.8 L187.5,45.3 L188.8,44.8 L190.1,44.3 L191.4,43.8 L192.7,43.3 L194.0,42.8 L195.2,42.3 L196.5,41.8 L197.8,41.3 L199.1,40.8 L200.4,40.4 L201.7,39.9 L203.0,39.4 L204.3,38.9 L205.6,38.4 L206.9,38.0 L208.2,37.5 L209.4,37.0 L210.7,36.5 L212.0,36.1 L213.3,35.6 L214.6,35.1 L215.9,34.7 L217.2,34.2 L218.5,33.8 L219.8,33.3 L221.0,32.8 L222.3,32.4 L223.6,31.9 L224.9,31.5 L226.2,31.0 L227.5,30.6 L228.8,30.1 L230.1,29.7 L231.4,29.3 L232.7,28.8 L234.0,28.4 L235.2,27.9 L236.5,27.5 L237.8,27.1 L239.1,26.6 L240.4,26.2 L241.7,25.8 L243.0,25.3 L244.3,24.9 L245.6,24.5 L246.8,24.1 L248.1,23.6 L249.4,23.2 L250.7,22.8 L252.0,22.4 L253.3,22.0 L254.6,21.5 L255.9,21.1 L257.2,20.7 L258.5,20.3 L259.8,19.9 L261.0,19.5 L262.3,19.1 L263.6,18.7 L264.9,18.3 L266.2,17.9 L267.5,17.5 L268.8,17.0 L270.1,16.6 L271.4,16.2 L272.6,15.8 L273.9,15.5 L275.2,15.1 L276.5,14.7 L277.8,14.3 L279.1,13.9 L280.4,13.5 L281.7,13.1 L283.0,12.7 L284.3,12.3 L285.5,11.9 L286.8,11.5 L288.1,11.2 L289.4,10.8 L290.7,10.4 L292.0,10.0" stroke="var(--accent)" stroke-dasharray="3 3" stroke-width="1.2"/>
+        <path d="M34.0,178.0 L35.3,174.2 L36.6,170.4 L37.9,166.7 L39.2,162.9 L40.5,159.5 L41.7,156.5 L43.0,153.8 L44.3,151.3 L45.6,148.9 L46.9,146.7 L48.2,144.6 L49.5,142.6 L50.8,140.7 L52.1,138.8 L53.3,137.1 L54.6,135.4 L55.9,133.7 L57.2,132.2 L58.5,130.6 L59.8,129.1 L61.1,127.7 L62.4,126.3 L63.7,124.9 L65.0,123.5 L66.2,122.2 L67.5,120.9 L68.8,119.6 L70.1,118.4 L71.4,117.2 L72.7,116.0 L74.0,114.8 L75.3,113.7 L76.6,112.6 L77.9,111.5 L79.2,110.4 L80.4,109.3 L81.7,108.2 L83.0,107.2 L84.3,106.2 L85.6,105.1 L86.9,104.1 L88.2,103.2 L89.5,102.2 L90.8,101.2 L92.1,100.3 L93.3,99.3 L94.6,98.4 L95.9,97.5 L97.2,96.6 L98.5,95.7 L99.8,94.8 L101.1,93.9 L102.4,93.1 L103.7,92.2 L105.0,91.4 L106.2,90.5 L107.5,89.7 L108.8,88.9 L110.1,88.0 L111.4,87.2 L112.7,86.4 L114.0,85.6 L115.3,84.8 L116.6,84.1 L117.9,83.3 L119.1,82.5 L120.4,81.8 L121.7,81.0 L123.0,80.3 L124.3,79.5 L125.6,78.8 L126.9,78.0 L128.2,77.3 L129.5,76.6 L130.8,75.9 L132.0,75.2 L133.3,74.5 L134.6,73.8 L135.9,73.1 L137.2,72.4 L138.5,71.7 L139.8,71.0 L141.1,70.3 L142.4,69.7 L143.6,69.0 L144.9,68.3 L146.2,67.7 L147.5,67.0 L148.8,66.4 L150.1,65.7 L151.4,65.1 L152.7,64.5 L154.0,63.8 L155.3,63.2 L156.6,62.6 L157.8,61.9 L159.1,61.3 L160.4,60.7 L161.7,60.1 L163.0,59.5 L164.3,58.9 L165.6,58.3 L166.9,57.7 L168.2,57.1 L169.5,56.5 L170.7,55.9 L172.0,55.3 L173.3,54.7 L174.6,54.1 L175.9,53.6 L177.2,53.0 L178.5,52.4 L179.8,51.8 L181.1,51.3 L182.3,50.7 L183.6,50.1 L184.9,49.6 L186.2,49.0 L187.5,48.5 L188.8,47.9 L190.1,47.4 L191.4,46.8 L192.7,46.3 L194.0,45.7 L195.2,45.2 L196.5,44.7 L197.8,44.1 L199.1,43.6 L200.4,43.1 L201.7,42.5 L203.0,42.0 L204.3,41.5 L205.6,41.0 L206.9,40.4 L208.2,39.9 L209.4,39.4 L210.7,38.9 L212.0,38.4 L213.3,37.9 L214.6,37.4 L215.9,36.9 L217.2,36.4 L218.5,35.9 L219.8,35.4 L221.0,34.9 L222.3,34.4 L223.6,33.9 L224.9,33.4 L226.2,32.9 L227.5,32.4 L228.8,31.9 L230.1,31.4 L231.4,31.0 L232.7,30.5 L234.0,30.0 L235.2,29.5 L236.5,29.1 L237.8,28.6 L239.1,28.1 L240.4,27.6 L241.7,27.2 L243.0,26.7 L244.3,26.2 L245.6,25.8 L246.8,25.3 L248.1,24.8 L249.4,24.4 L250.7,23.9 L252.0,23.5 L253.3,23.0 L254.6,22.6 L255.9,22.1 L257.2,21.7 L258.5,21.2 L259.8,20.8 L261.0,20.3 L262.3,19.9 L263.6,19.4 L264.9,19.0 L266.2,18.5 L267.5,18.1 L268.8,17.7 L270.1,17.2 L271.4,16.8 L272.6,16.4 L273.9,15.9 L275.2,15.5 L276.5,15.1 L277.8,14.6 L279.1,14.2 L280.4,13.8 L281.7,13.4 L283.0,12.9 L284.3,12.5 L285.5,12.1 L286.8,11.7 L288.1,11.3 L289.4,10.8 L290.7,10.4 L292.0,10.0" stroke="var(--cool)"/>
+        <path d="M34.0,178.0 L35.3,157.4 L36.6,148.9 L37.9,142.4 L39.2,136.8 L40.5,132.0 L41.7,127.6 L43.0,123.6 L44.3,119.8 L45.6,116.3 L46.9,112.9 L48.2,109.8 L49.5,106.7 L50.8,103.8 L52.1,101.0 L53.3,98.3 L54.6,95.7 L55.9,93.2 L57.2,90.8 L58.5,88.6 L59.8,86.6 L61.1,84.7 L62.4,82.9 L63.7,81.2 L65.0,79.6 L66.2,78.1 L67.5,76.6 L68.8,75.2 L70.1,73.9 L71.4,72.7 L72.7,71.4 L74.0,70.3 L75.3,69.2 L76.6,68.1 L77.9,67.0 L79.2,66.0 L80.4,65.0 L81.7,64.1 L83.0,63.2 L84.3,62.3 L85.6,61.4 L86.9,60.6 L88.2,59.8 L89.5,59.0 L90.8,58.2 L92.1,57.4 L93.3,56.7 L94.6,56.0 L95.9,55.3 L97.2,54.6 L98.5,53.9 L99.8,53.3 L101.1,52.6 L102.4,52.0 L103.7,51.4 L105.0,50.8 L106.2,50.2 L107.5,49.6 L108.8,49.0 L110.1,48.5 L111.4,47.9 L112.7,47.4 L114.0,46.9 L115.3,46.3 L116.6,45.8 L117.9,45.3 L119.1,44.8 L120.4,44.3 L121.7,43.9 L123.0,43.4 L124.3,42.9 L125.6,42.5 L126.9,42.0 L128.2,41.6 L129.5,41.1 L130.8,40.7 L132.0,40.3 L133.3,39.9 L134.6,39.5 L135.9,39.0 L137.2,38.6 L138.5,38.2 L139.8,37.9 L141.1,37.5 L142.4,37.1 L143.6,36.7 L144.9,36.3 L146.2,36.0 L147.5,35.6 L148.8,35.3 L150.1,34.9 L151.4,34.5 L152.7,34.2 L154.0,33.9 L155.3,33.5 L156.6,33.2 L157.8,32.9 L159.1,32.5 L160.4,32.2 L161.7,31.9 L163.0,31.6 L164.3,31.3 L165.6,30.9 L166.9,30.6 L168.2,30.3 L169.5,30.0 L170.7,29.7 L172.0,29.4 L173.3,29.1 L174.6,28.9 L175.9,28.6 L177.2,28.3 L178.5,28.0 L179.8,27.7 L181.1,27.4 L182.3,27.2 L183.6,26.9 L184.9,26.6 L186.2,26.4 L187.5,26.1 L188.8,25.8 L190.1,25.6 L191.4,25.3 L192.7,25.1 L194.0,24.8 L195.2,24.6 L196.5,24.3 L197.8,24.1 L199.1,23.8 L200.4,23.6 L201.7,23.3 L203.0,23.1 L204.3,22.9 L205.6,22.6 L206.9,22.4 L208.2,22.2 L209.4,21.9 L210.7,21.7 L212.0,21.5 L213.3,21.3 L214.6,21.0 L215.9,20.8 L217.2,20.6 L218.5,20.4 L219.8,20.2 L221.0,19.9 L222.3,19.7 L223.6,19.5 L224.9,19.3 L226.2,19.1 L227.5,18.9 L228.8,18.7 L230.1,18.5 L231.4,18.3 L232.7,18.1 L234.0,17.9 L235.2,17.7 L236.5,17.5 L237.8,17.3 L239.1,17.1 L240.4,16.9 L241.7,16.7 L243.0,16.5 L244.3,16.3 L245.6,16.1 L246.8,15.9 L248.1,15.7 L249.4,15.6 L250.7,15.4 L252.0,15.2 L253.3,15.0 L254.6,14.8 L255.9,14.7 L257.2,14.5 L258.5,14.3 L259.8,14.1 L261.0,13.9 L262.3,13.8 L263.6,13.6 L264.9,13.4 L266.2,13.2 L267.5,13.1 L268.8,12.9 L270.1,12.7 L271.4,12.6 L272.6,12.4 L273.9,12.2 L275.2,12.1 L276.5,11.9 L277.8,11.7 L279.1,11.6 L280.4,11.4 L281.7,11.3 L283.0,11.1 L284.3,10.9 L285.5,10.8 L286.8,10.6 L288.1,10.5 L289.4,10.3 L290.7,10.2 L292.0,10.0" stroke="var(--cool)" stroke-dasharray="3 3" stroke-width="1.2"/>
+        <path d="M34.0,178.0 L35.3,158.3 L36.6,152.8 L37.9,149.2 L39.2,146.4 L40.5,144.1 L41.7,142.2 L43.0,140.5 L44.3,139.0 L45.6,137.6 L46.9,136.4 L48.2,135.2 L49.5,134.2 L50.8,133.2 L52.1,132.3 L53.3,131.4 L54.6,130.6 L55.9,129.8 L57.2,129.0 L58.5,128.3 L59.8,127.7 L61.1,127.0 L62.4,126.4 L63.7,125.8 L65.0,125.2 L66.2,124.6 L67.5,124.1 L68.8,123.6 L70.1,123.1 L71.4,122.6 L72.7,122.1 L74.0,121.7 L75.3,121.2 L76.6,120.8 L77.9,120.4 L79.2,119.9 L80.4,119.5 L81.7,119.1 L83.0,118.8 L84.3,118.4 L85.6,118.0 L86.9,117.7 L88.2,117.3 L89.5,117.0 L90.8,116.6 L92.1,116.3 L93.3,116.0 L94.6,115.7 L95.9,115.3 L97.2,115.0 L98.5,114.7 L99.8,114.4 L101.1,114.2 L102.4,113.9 L103.7,113.6 L105.0,113.3 L106.2,113.0 L107.5,112.8 L108.8,112.5 L110.1,112.3 L111.4,112.0 L112.7,111.7 L114.0,111.5 L115.3,111.3 L116.6,111.0 L117.9,110.8 L119.1,110.5 L120.4,110.3 L121.7,110.1 L123.0,109.9 L124.3,109.6 L125.6,109.4 L126.9,109.2 L128.2,109.0 L129.5,108.8 L130.8,108.6 L132.0,108.4 L133.3,108.2 L134.6,108.0 L135.9,107.8 L137.2,107.6 L138.5,107.4 L139.8,107.2 L141.1,107.0 L142.4,106.8 L143.6,106.6 L144.9,106.4 L146.2,106.2 L147.5,106.1 L148.8,105.9 L150.1,105.7 L151.4,105.5 L152.7,105.4 L154.0,105.2 L155.3,105.0 L156.6,104.8 L157.8,104.7 L159.1,104.5 L160.4,104.4 L161.7,104.2 L163.0,104.0 L164.3,103.9 L165.6,103.7 L166.9,103.6 L168.2,103.4 L169.5,103.3 L170.7,103.1 L172.0,102.9 L173.3,102.8 L174.6,102.7 L175.9,102.5 L177.2,102.4 L178.5,102.2 L179.8,102.1 L181.1,101.9 L182.3,101.8 L183.6,101.6 L184.9,101.5 L186.2,101.4 L187.5,101.2 L188.8,101.1 L190.1,101.0 L191.4,100.8 L192.7,100.7 L194.0,100.6 L195.2,100.4 L196.5,100.3 L197.8,100.2 L199.1,100.0 L200.4,99.9 L201.7,99.8 L203.0,99.7 L204.3,99.5 L205.6,99.4 L206.9,99.3 L208.2,99.2 L209.4,99.1 L210.7,98.9 L212.0,98.8 L213.3,98.7 L214.6,98.6 L215.9,98.5 L217.2,98.3 L218.5,98.2 L219.8,98.1 L221.0,98.0 L222.3,97.9 L223.6,97.8 L224.9,97.7 L226.2,97.6 L227.5,97.4 L228.8,97.3 L230.1,97.2 L231.4,97.1 L232.7,97.0 L234.0,96.9 L235.2,96.8 L236.5,96.7 L237.8,96.6 L239.1,96.5 L240.4,96.4 L241.7,96.3 L243.0,96.2 L244.3,96.1 L245.6,96.0 L246.8,95.9 L248.1,95.8 L249.4,95.7 L250.7,95.6 L252.0,95.5 L253.3,95.4 L254.6,95.3 L255.9,95.2 L257.2,95.1 L258.5,95.0 L259.8,94.9 L261.0,94.8 L262.3,94.7 L263.6,94.6 L264.9,94.5 L266.2,94.4 L267.5,94.3 L268.8,94.2 L270.1,94.1 L271.4,94.0 L272.6,94.0 L273.9,93.9 L275.2,93.8 L276.5,93.7 L277.8,93.6 L279.1,93.5 L280.4,93.4 L281.7,93.3 L283.0,93.2 L284.3,93.2 L285.5,93.1 L286.8,93.0 L288.1,92.9 L289.4,92.8 L290.7,92.7 L292.0,92.6" stroke="var(--ink)" stroke-width="1.2"/>
+      </svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>sRGB</span><span><i style="background:var(--accent);opacity:.55"></i>γ 1/2.2</span><span><i style="background:var(--cool)"></i>Rec.709 OETF</span><span><i style="background:var(--cool);opacity:.55"></i>HLG</span><span><i style="background:var(--ink)"></i>PQ（1.0 = 100 nit）</span></div>
+      <div class="cap">按各标准公式逐点绘制。sRGB 与 1/2.2 幂在中段几乎重合，只在暗部分开；PQ 把一半以上的码值给了 100 nit 以下的亮度。</div>
+    </div>
+  </div>
+</header>
+</div>
+
+<nav class="toc"><ol><li><a href="#s1">总览</a></li><li><a href="#s2">色度学</a></li><li><a href="#s3">色彩空间</a></li><li><a href="#s4">线性工作流</a></li><li><a href="#s5">曝光与 HDR</a></li><li><a href="#s6">色调映射</a></li><li><a href="#s7">材质与光源</a></li><li><a href="#s8">引擎管线</a></li><li><a href="#s9">汇合与判断</a></li><li><a href="#s10">来源</a></li></ol></nav>
+
+<div class="wrap">
+<blockquote>
+<p>整理日期：2026-11-16。公式、矩阵与参数来自 CIE、ITU-R、IEC、SMPTE、Academy（ACES）、Khronos 规范与引擎文档；转换矩阵按各空间的原色与白点重新计算并与 Lindbloom、CSS Color 4、ACES 官方值核对。未能从一手来源确认的条目随文标注"未核实"。</p>
+</blockquote>
+<section id="s1">
+<h2><span class="num">01</span>总览：渲染器里的颜色要回答三个问题</h2>
+<p>渲染管线里的每个颜色值都有三重身份：它在<strong>哪个色彩空间</strong>（原色与白点决定了同一组数字代表什么光）、它是<strong>线性光还是编码值</strong>（决定了能不能对它做加法和乘法）、它最终要<strong>映射到多亮的屏幕</strong>（决定了色调映射与显示编码）。本文按这三个问题组织：</p>
+<div class="tbl"><table><thead><tr><th>章</th><th>问题</th><th>内容</th><th>关键结论</th></tr></thead><tbody>
+<tr><td>2</td><td>人眼看到什么</td><td>三锥、V(λ)、Weber/Stevens、Barten、色貌现象、CIE 1931</td><td>三刺激是 RGB 渲染成立的前提，也是它所有误差的来源；暗部对相对差异敏感决定了伽马与 PQ</td></tr>
+<tr><td>3</td><td>数字在哪个空间</td><td>原色/白点表、全部转换矩阵、CAT、色域覆盖、Lab/Oklab/ICtCp、CAM</td><td>同白点直接乘矩阵，异白点必须 Bradford；Oklab 是今天做渐变与色域映射的默认选择；ACES 2.0 转到色貌空间</td></tr>
+<tr><td>4</td><td>线性还是编码</td><td>OETF/EOTF、sRGB 与 2.2 的差异、PQ/HLG、线性工作流、硬件 sRGB、FP16/R11G11B10、抖动、预乘 alpha、AA、文字</td><td>所有"加法"在线性光里做；8 bit 线性不可用；sRGB 解码编码在硬件里免费，真正的代价是 HDR 缓冲带宽</td></tr>
+<tr><td>5</td><td>场景有多亮</td><td>辐射/光度单位、真实亮度表、EV100、预曝光、物理光单位、自动曝光</td><td>场景 14 个数量级、显示 2–3 个；曝光先于色调映射，预曝光让 FP16 够用</td></tr>
+<tr><td>6</td><td>如何压到屏幕</td><td>13 个色调映射算子的公式与参数、色相问题、调色、HDR10/DV/HLG、DisplayHDR、游戏 HDR 管线、色域映射</td><td>逐通道曲线偏色、仅亮度不趋白；2017 年后的新算子（Frostbite、AgX、Tony、Khronos Neutral、ACES 2.0）都在解决保色相与受控趋白</td></tr>
+<tr><td>7</td><td>材质与光源的颜色从哪来</td><td>反照率范围、F0 表、金属 Fresnel、SSS、色散、色温与普朗克轨迹、D65 ≠ 6500 K 黑体、大气系数、IBL、光谱渲染</td><td>金属颜色 = F0 = 特定光源下的光谱平均；D 光源不在黑体轨迹上；RGB 乘法依赖工作空间原色</td></tr>
+<tr><td>8</td><td>引擎怎么做</td><td>UE、Unity、Godot、Frostbite、Filament、Blender、three.js、Bevy、Arnold、RenderMan、OCIO</td><td>统一形状：scene-linear → 调色 → 视图变换 → 显示编码</td></tr>
+<tr><td>9</td><td>该怎么选</td><td>实践清单与常见错误</td><td>见文末</td></tr>
+</tbody></table></div>
+<h3>1.1 一条管线上的颜色</h3>
+<pre>纹理 (sRGB 8bit, ASTC/BC)  ──TMU 解码──▶ 线性反照率 [0,1]
+光源 (色温 K → xy → RGB; lm/cd/lx/nit)  ──▶ 线性辐亮度 (cd/m², 10⁻³ … 10⁹)
+      │  BRDF 乘加、多光源累加、IBL、SSS、体积       (线性, 工作空间 sRGB / AP1 / Rec.2020)
+      ▼
+scene-linear 缓冲 (FP16 / R11G11B10, 预曝光)
+      │  bloom, DOF, TAA resolve (线性; HDR 下 resolve 前做可逆 tonemap)
+      │  曝光 (EV100) ─▶ 调色 (LMT, log LUT / CDL)
+      ▼
+色调映射 / 显示映射 (ACES, AgX, Neutral, GT, Frostbite ICtCp, ACES 2.0 JMh)
+      │  色域映射 (RGC, Oklch 二分, cusp)
+      ▼
+显示编码:  sRGB OETF → RGBA8/RGB10A2        (SDR, 80–300 nit)
+           PQ → RGB10A2 + HDR10 元数据       (HDR10, ≤10000 nit)
+           线性 scRGB FP16 (1.0 = 80 nit)    (Windows 合成器)
+           EDR FP16 (1.0 = SDR 白, headroom)  (Apple)
+      │  抖动 (三角噪声, 在被量化的空间)
+      ▼
+UI 合成 (预乘 alpha, 线性; 文字伽马折中) → 屏幕</pre>
+<h3>1.2 关键标准与算法时间线</h3>
+<div class="tbl"><table><thead><tr><th>年份</th><th>事件</th></tr></thead><tbody>
+<tr><td>1802 / 1861</td><td>Young 三色理论；Maxwell 三色照片演示</td></tr>
+<tr><td>1924 / 1931</td><td>CIE V(λ)；CIE 1931 XYZ 2° 观察者</td></tr>
+<tr><td>1964 / 1976</td><td>CIE 10° 观察者；CIELAB、CIELUV、u′v′</td></tr>
+<tr><td>1980 / 1982</td><td>Pointer 真实表面色域；Rec.601</td></tr>
+<tr><td>1984</td><td>Porter–Duff 合成与预乘 alpha</td></tr>
+<tr><td>1990 / 1993</td><td>Rec.709 OETF</td></tr>
+<tr><td>1991 / 1992</td><td>Radiance RGBE；Kodak Cineon 对数编码</td></tr>
+<tr><td>1996 / 1999</td><td>sRGB 提出（HP + Microsoft）；IEC 61966-2-1</td></tr>
+<tr><td>1997 / 1998</td><td>Debevec HDR 合成；Adobe RGB；IPT；Ward LogLuv</td></tr>
+<tr><td>2001 / 2002</td><td>球谐辐照度；Reinhard 色调映射；CIECAM02；Durand/Fattal 局部映射</td></tr>
+<tr><td>2003</td><td>OpenEXR 开源；YCoCg；OpenColorIO 在 Imageworks 内部起步</td></tr>
+<tr><td>2005 / 2007</td><td>DCI-P3；EXT_texture_sRGB；GPU Gems 3 线性工作流一章</td></tr>
+<tr><td>2008</td><td>Bruneton 预计算大气；Valve GDC 伽马校正实践</td></tr>
+<tr><td>2010</td><td>Hable Uncharted 2 曲线；EXT_framebuffer_sRGB；CryEngine 3 伽马正确渲染</td></tr>
+<tr><td>2011 / 2012</td><td>BT.1886；Rec.2020；Disney 原则性 BRDF；Hosek–Wilkie 天空；ASTC</td></tr>
+<tr><td>2013</td><td>Karis UE4 着色与 split-sum；Lottes/Karis 可逆 tonemap resolve</td></tr>
+<tr><td>2014</td><td>ST 2084 PQ；ACES 1.0；Frostbite 物理光单位与预曝光；Gulbrandsen 金属 Fresnel</td></tr>
+<tr><td>2015</td><td>Display P3；HLG（ARIB）；HDR10；Jimenez 可分离 SSS</td></tr>
+<tr><td>2016</td><td>BT.2100（PQ/HLG/ICtCp）；Narkowicz/Hill ACES 拟合；Lottes GDC；Xbox One S 与 PS4 HDR；Gjøl 抖动</td></tr>
+<tr><td>2017</td><td>UE 4.15 ACES Filmic 默认；GT tonemapper；Frostbite ICtCp 显示映射；Kulla–Conty 能量补偿；CAM16；Belcour 薄膜；Blender Filmic</td></tr>
+<tr><td>2018</td><td>HGIG；UE 4.19 物理单位；Manuka 论文</td></tr>
+<tr><td>2019</td><td>Jakob–Hanika 与 Mallett–Yuksel 光谱上采样；Standard Surface</td></tr>
+<tr><td>2020</td><td>Oklab；ꟻLIP；Hillaire 天空（UE Sky Atmosphere）；OCIO 2</td></tr>
+<tr><td>2021</td><td>ACES 1.3 RGC；Windows Auto HDR；Arnold 7 默认 ACEScg</td></tr>
+<tr><td>2022</td><td>UE 5.0 Local Exposure；UE 5.1 Working Color Space；Unity 2022.1 HDR 输出；CIECAM16 标准化；KHR iridescence</td></tr>
+<tr><td>2023</td><td>three.js 默认色彩管理；AgX 成 Blender 4.0 默认；Tony McMapface 与 Bevy 默认</td></tr>
+<tr><td>2024</td><td>Khronos PBR Neutral；KHR dispersion；OpenPBR；DisplayHDR CTS 1.2；RTX HDR</td></tr>
+<tr><td>2025</td><td>ACES 2.0（JMh 色貌空间输出变换）；Godot 4.4 AgX</td></tr>
+</tbody></table></div>
+</section>
+<section id="s2">
+<h2><span class="num">02</span>色度学</h2>
+<h3>2.1 三种视锥与亮度函数</h3>
+<p>颜色不是光的属性，是人眼对光谱的三维投影。视网膜上约 600–700 万个视锥分三类，S 锥峰值约 420 nm，M 锥约 530 nm，L 锥约 560 nm；S 锥只占 2% 左右，L:M 比例个体差异极大（实测有 76:20 和 51:44 两种极端）。约 9200 万个视杆负责暗视，峰值约 498 nm，不分辨颜色。"三刺激"这一事实决定了渲染只需三个通道就能骗过眼睛，也决定了三通道渲染的所有误差来源。</p>
+<div class="tbl"><table><thead><tr><th>项目</th><th>数值</th><th>对渲染的意义</th></tr></thead><tbody>
+<tr><td>明视亮度函数 V(λ) 峰值</td><td>555 nm，K_m = 683 lm/W</td><td>光度学单位（lm、cd、lx、nit）全部由它定义，它就是 CIE 1931 的 ȳ(λ)，所以 XYZ 的 Y 分量就是亮度</td></tr>
+<tr><td>暗视 V′(λ) 峰值</td><td>507 nm，≈1700 lm/W</td><td>夜景的"蓝移"（Purkinje 效应）不是渲染器自动产生的，要靠后期模拟</td></tr>
+<tr><td>中间视觉范围</td><td>约 0.01–3 cd/m²</td><td>色貌模型（CIECAM 系列）只对 &gt;5 cd/m² 的明视条件有效</td></tr>
+<tr><td>Weber–Fechner</td><td>ΔI/I ≈ 常数（亮度约 1–2%，未从一手来源核实）</td><td>等步长的线性编码在暗部浪费、在亮部不足，这是伽马与 PQ 存在的全部理由</td></tr>
+<tr><td>Stevens 幂律（1957）</td><td>感知亮度 ∝ I^0.33（暗背景大目标）到 I^0.5（点光源）</td><td>CIELAB 的立方根、Oklab 的立方根、sRGB 的 1/2.4 都是这个幂律的不同近似</td></tr>
+<tr><td>Barten 对比敏感度（1999）</td><td>PQ 曲线按它拟合 0–10000 cd/m²</td><td>12 bit PQ 全程低于可见阈值；10 bit PQ 在无噪声的 CG 图像上会可见条带，实拍因噪声掩蔽可接受</td></tr>
+</tbody></table></div>
+<p>对线性光直接量化为什么不行：8 bit 线性在最暗一档（1/255 → 2/255）的相对步长是 100%，远超 1–2% 的韦伯分数，天空和暗部会出现明显条带；要让线性编码全程低于阈值需要 14–15 bit，所以中间缓冲用 FP16（尾数 10 bit 加指数，相对步长恒定约 0.1%），最终输出用 sRGB/伽马（8–10 bit）或 PQ/HLG（10–12 bit）。</p>
+<h3>2.2 色貌现象：为什么色调映射不能只是一条曲线</h3>
+<div class="tbl"><table><thead><tr><th>现象</th><th>定义</th><th>对 HDR 与色调映射的影响</th></tr></thead><tbody>
+<tr><td>同色异谱（metamerism）</td><td>不同光谱给出相同 XYZ</td><td>RGB 渲染的基础；也是"反射率 × 光源"在 RGB 下不精确的根源（见第 7 章）</td></tr>
+<tr><td>Hunt 效应</td><td>亮度越高，彩度感越强</td><td>HDR 画面"更鲜艳"，SDR 映射要补偿彩度；ACES 2.0 的 chroma compression 就是在做这件事</td></tr>
+<tr><td>Stevens 效应</td><td>亮度越高，感知对比越高</td><td>暗环境或低峰值显示要抬高对比；Bartleson–Breneman：环绕越亮对比感越强</td></tr>
+<tr><td>Bezold–Brücke</td><td>同一色度随亮度变化色相偏移（黄、蓝最明显）</td><td>逐通道曲线会带来色相漂移</td></tr>
+<tr><td>Abney 效应</td><td>向单色光加白光会改变色相</td><td>直线朝白点去饱和不保色相，所以 IPT、Oklab 把"色相线笔直"作为设计目标</td></tr>
+<tr><td>Helmholtz–Kohlrausch</td><td>饱和色看起来比等亮度的灰更亮</td><td>以 Y 为准的"等亮度"色调映射主观上会不平衡；CIECAM02 不建模它</td></tr>
+<tr><td>同时对比</td><td>周围色改变中心色外观</td><td>UI 配色、HDR 观看环绕条件</td></tr>
+<tr><td>色适应</td><td>眼睛折扣光源白点</td><td>白平衡、D50/D65 转换、色温，见 3.3 节</td></tr>
+</tbody></table></div>
+<h3>2.3 CIE 1931 XYZ：一切颜色数据的公共坐标</h3>
+<ul>
+<li><strong>来源</strong>：Wright（1928，10 名观察者）与 Guild（1932，7 名）的匹配实验，原色 700 / 546.1 / 435.8 nm。CIE 把 RGB 配色函数线性变换为 XYZ，使三条函数非负且 ȳ(λ) = V(λ)。XYZ 的原色是虚构的，物理不可实现，这正是它能包住所有可见色的原因。</li>
+<li><strong>色度坐标</strong>：x = X/(X+Y+Z)，y = Y/(X+Y+Z)。xy 色度图上马蹄形边界是单色光轨迹，任何实际显示器的色域都是这个马蹄内的三角形（或多边形）。</li>
+<li><strong>CIE 1976 u′v′</strong>：u′ = 4X/(X+15Y+3Z)，v′ = 9Y/(X+15Y+3Z)。比 xy 更接近感知均匀，比较色域面积时应优先用 u′v′。</li>
+<li><strong>2° 与 10° 观察者</strong>：1931 是 2° 视场；1964 的 10° 观察者用于大面积色样；显示与渲染一律用 1931 2°。</li>
+<li><strong>CIE 170 锥基础观察者（2006/2015）</strong>：基于 Stockman–Sharpe 的生理 LMS 数据，可按年龄和视场参数化；研究用，渲染与显示标准仍以 1931 为准。</li>
+</ul>
+<h3>2.4 LMS 与色适应的生理基础</h3>
+<p>从 XYZ 到锥响应 LMS 的变换矩阵不止一个（Hunt–Pointer–Estevez、Bradford、CAT02、CAT16、CIE 2006），它们都是"把三刺激值旋转到更接近视锥的坐标"，差别在于是否做了"光谱锐化"以便白平衡更准确。色适应变换（CAT）都遵循 von Kries 假说：在某个 LMS 空间里按白点比例缩放三个通道。</p>
+</section>
+<section id="s3">
+<h2><span class="num">03</span>色彩空间</h2>
+<h3>3.1 RGB 工作空间的三要素：原色、白点、传递函数</h3>
+<p>一个 RGB 空间由三原色的 xy 色度、白点、传递函数三样东西完全定义。前两样决定线性 RGB 与 XYZ 之间的 3×3 矩阵，第三样决定编码值与线性值的关系。渲染器内部用的是线性 RGB，只有第一、第二样起作用。</p>
+<div class="tbl"><table><thead><tr><th>空间</th><th>R (x, y)</th><th>G (x, y)</th><th>B (x, y)</th><th>白点</th><th>传递函数</th><th>典型用途</th></tr></thead><tbody>
+<tr><td>sRGB / Rec.709</td><td>0.640, 0.330</td><td>0.300, 0.600</td><td>0.150, 0.060</td><td>D65</td><td>sRGB 分段曲线 / BT.709 OETF</td><td>桌面、Web、SDR 游戏输出</td></tr>
+<tr><td>Display P3</td><td>0.680, 0.320</td><td>0.265, 0.690</td><td>0.150, 0.060</td><td>D65</td><td>sRGB 曲线</td><td>Apple 全系设备、Android 广色域</td></tr>
+<tr><td>DCI-P3</td><td>同上</td><td></td><td></td><td>DCI 白 (0.314, 0.351)，约 6300 K</td><td>纯幂 2.6</td><td>数字影院</td></tr>
+<tr><td>Adobe RGB (1998)</td><td>0.640, 0.330</td><td>0.210, 0.710</td><td>0.150, 0.060</td><td>D65</td><td>幂 563/256 ≈ 2.1992</td><td>印刷、摄影</td></tr>
+<tr><td>Rec.2020 / 2100</td><td>0.708, 0.292</td><td>0.170, 0.797</td><td>0.131, 0.046</td><td>D65</td><td>BT.1886 / PQ / HLG</td><td>UHD、HDR10、HDR 输出容器</td></tr>
+<tr><td>ProPhoto / ROMM</td><td>0.7347, 0.2653</td><td>0.1596, 0.8404</td><td>0.0366, 0.0001</td><td>D50</td><td>幂 1.8，线性段阈值 1/512</td><td>摄影后期，13% 面积是虚色</td></tr>
+<tr><td>ACES AP0 (ACES2065-1)</td><td>0.7347, 0.2653</td><td>0.0000, 1.0000</td><td>0.0001, −0.0770</td><td>ACES 白 (0.32168, 0.33767)</td><td>线性</td><td>归档、交换，包住整个光谱轨迹</td></tr>
+<tr><td>ACES AP1 (ACEScg)</td><td>0.713, 0.293</td><td>0.165, 0.830</td><td>0.128, 0.044</td><td>ACES 白</td><td>线性 (cg)、对数 (cc/cct)</td><td>渲染与合成的工作空间</td></tr>
+</tbody></table></div>
+<p>白点的 XYZ（Y = 1）：D65 (0.950456, 1, 1.089058)、D50 (0.964296, 1, 0.825105)、ACES 白 (0.952646, 1, 1.008825)、DCI 白 (0.894587, 1, 0.954416)、E (1, 1, 1)。ACES 白俗称 D60，但 CIE 并没有 D60 标准光源；Rec.2020 的三原色是单色光（630 / 532 / 467 nm），所以它在色度图上贴着马蹄边缘。</p>
+<h3>3.2 转换矩阵</h3>
+<p>推导方法（Lindbloom）：对每个原色取 X = x/y、Y = 1、Z = (1−x−y)/y 组成矩阵 P，解 S = P⁻¹ · W（W 为白点 XYZ），则 RGB→XYZ 矩阵的每一列为 S_i 乘以第 i 个原色的 XYZ。下列矩阵按此法从原色重新计算，与 Lindbloom、CSS Color 4 与 ACES 官方值在给出位数内一致。均为行主序，列向量，<code>XYZ = M · RGB</code>。</p>
+<pre>sRGB(线性) → XYZ (D65)                XYZ → sRGB(线性)
+[ 0.412391  0.357584  0.180481 ]      [  3.240970  -1.537383  -0.498611 ]
+[ 0.212639  0.715169  0.072192 ]      [ -0.969244   1.875968   0.041555 ]
+[ 0.019331  0.119195  0.950532 ]      [  0.055630  -0.203977   1.056972 ]
+
+Rec.2020 → XYZ                        XYZ → Rec.2020
+[ 0.636958  0.144617  0.168881 ]      [  1.716651  -0.355671  -0.253366 ]
+[ 0.262700  0.677998  0.059302 ]      [ -0.666684   1.616481   0.015769 ]
+[ 0.000000  0.028073  1.060985 ]      [  0.017640  -0.042771   0.942103 ]
+
+sRGB → Rec.2020                       Rec.2020 → sRGB
+[ 0.627404  0.329283  0.043313 ]      [  1.660491  -0.587641  -0.072850 ]
+[ 0.069097  0.919540  0.011362 ]      [ -0.124550   1.132900  -0.008349 ]
+[ 0.016391  0.088013  0.895595 ]      [ -0.018151  -0.100579   1.118730 ]
+
+Display P3 → XYZ                      sRGB → Display P3
+[ 0.486571  0.265668  0.198217 ]      [ 0.822462  0.177538  0.000000 ]
+[ 0.228975  0.691739  0.079287 ]      [ 0.033194  0.966806  0.000000 ]
+[ 0.000000  0.045113  1.043944 ]      [ 0.017083  0.072397  0.910520 ]
+
+ACES AP1 → XYZ                        XYZ → AP1
+[  0.662454  0.134004  0.156188 ]     [  1.641023  -0.324803  -0.236425 ]
+[  0.272229  0.674082  0.053690 ]     [ -0.663663   1.615332   0.016756 ]
+[ -0.005575  0.004061  1.010339 ]     [  0.011722  -0.008284   0.988395 ]
+
+sRGB → ACEScg (AP1，含 Bradford D65→ACES 白)   ACEScg → sRGB
+[ 0.613097  0.339523  0.047379 ]              [  1.705051  -0.621792  -0.083259 ]
+[ 0.070194  0.916354  0.013452 ]              [ -0.130256   1.140805  -0.010548 ]
+[ 0.020616  0.109570  0.869815 ]              [ -0.024003  -0.128969   1.152972 ]
+
+AP0 → AP1                             AP1 → AP0
+[  1.451439  -0.236511  -0.214929 ]   [  0.695452  0.140679  0.163869 ]
+[ -0.076554   1.176230  -0.099676 ]   [  0.044795  0.859671  0.095534 ]
+[  0.008316  -0.006032   0.997716 ]   [ -0.005526  0.004025  1.001501 ]</pre>
+<p>几个使用要点：</p>
+<ul>
+<li>sRGB→XYZ 的第二行就是亮度权重 (0.2126, 0.7152, 0.0722)；Rec.2020 的对应权重是 (0.2627, 0.6780, 0.0593)；Rec.601 的 (0.299, 0.587, 0.114) 是对伽马编码值算 luma 的旧系数，用它对线性值求亮度是错的。</li>
+<li>同白点的空间之间（sRGB、P3-D65、Rec.2020）直接乘矩阵；不同白点（sRGB↔ACES、D65↔D50）必须插入色适应矩阵，否则白会偏色。</li>
+<li>从大色域转到小色域会出现负值或大于 1 的值，这就是第 6 章色域映射要处理的问题。sRGB→P3 的矩阵全部非负，说明 sRGB 完全包含在 P3 内。</li>
+</ul>
+<h3>3.3 色适应变换</h3>
+<p>所有 CAT 的形式都是 M = M_A⁻¹ · diag(L_D/L_S, M_D/M_S, S_D/S_S) · M_A，差别在 M_A：</p>
+<pre>Bradford（Lam 1985，ICC/Photoshop/ACES 采用）    CAT02（CIECAM02，2002）
+[  0.8951  0.2664 -0.1614 ]                      [  0.7328  0.4296 -0.1624 ]
+[ -0.7502  1.7135  0.0367 ]                      [ -0.7036  1.6975  0.0061 ]
+[  0.0389 -0.0685  1.0296 ]                      [  0.0030  0.0136  0.9834 ]
+
+CAT16（Li 等 2017）                               预计算 Bradford D65 → D50
+[  0.401288  0.650173 -0.051461 ]                [  1.047930  0.022947 -0.050192 ]
+[ -0.250268  1.204414  0.045854 ]                [  0.029628  0.990434 -0.017074 ]
+[ -0.002079  0.048952  0.953127 ]                [ -0.009243  0.015055  0.751874 ]
+
+预计算 Bradford D65 → ACES 白                     ACES 白 → D65
+[  1.013035  0.006105 -0.014971 ]                [  0.987224 -0.006113  0.015953 ]
+[  0.007698  0.998163 -0.005032 ]                [ -0.007598  1.001861  0.005330 ]
+[ -0.002841  0.004685  0.924506 ]                [  0.003073 -0.005096  1.081681 ]</pre>
+<p>直接缩放 XYZ（M_A = I）是最差的做法；Bradford 做过"光谱锐化"，白平衡更准，是 ICC 与 ACES 的默认。CIECAM02 的适应度 D = F·(1 − (1/3.6)·e^(−(L_A+42)/92))，F 取 1.0 / 0.9 / 0.8 对应平均、昏暗、黑暗环绕。引擎里的"白平衡（色温/色调）"后期参数本质上就是一次 CAT。</p>
+<h3>3.4 色域覆盖</h3>
+<div class="tbl"><table><thead><tr><th>空间</th><th>CIE 1931 xy 面积占比</th><th>Pointer 色域覆盖（u′v′）</th><th>CIELAB 体积（CSS Color 4，百万单位）</th></tr></thead><tbody>
+<tr><td>sRGB / Rec.709</td><td>35.9%</td><td>70.2%</td><td>0.820</td></tr>
+<tr><td>Adobe RGB</td><td>52.1%</td><td>80.3%</td><td>1.310</td></tr>
+<tr><td>DCI-P3 / Display P3</td><td>53.6%</td><td>85.5%</td><td>1.233</td></tr>
+<tr><td>Rec.2020</td><td>75.8%</td><td>99.7%</td><td>2.042</td></tr>
+<tr><td>ProPhoto</td><td>约 79%（另一分母）</td><td>100%</td><td>2.896</td></tr>
+</tbody></table></div>
+<p>Pointer 色域（1980）是 4089 个真实漫反射表面色的包络，镜面反射与荧光可以超出。不同来源给出的"xy 面积占比"分母定义不同，引用时必须注明来源；u′v′ 下的数字更有意义。实际含义：sRGB 装不下三成真实物体色，P3 装下约 85%，Rec.2020 几乎全部。</p>
+<h3>3.5 感知均匀空间：Lab、Oklab、ICtCp</h3>
+<p>渲染里需要"两个颜色差多少"的地方不少：纹理压缩误差、UI 渐变插值、抗锯齿混合、色域映射、画质指标。XYZ 和线性 RGB 是物理量，欧氏距离与感知差异不成比例，于是有了感知均匀空间。</p>
+<p><strong>CIELAB（1976）</strong>：L* = 116 f(Y/Y_n) − 16，a* = 500[f(X/X_n) − f(Y/Y_n)]，b* = 200[f(Y/Y_n) − f(Z/Z_n)]；f(t) = t^(1/3)（t &gt; 216/24389），否则 (24389/27)·t/116 + 16/116。L* 的立方根就是 Stevens 幂律的近似；ΔE76 是 Lab 中的欧氏距离，JND 约 2.3（Sharma 2003），ΔE2000 加了明度、彩度、色相权重与蓝区旋转项。Lab 的缺点是蓝色的色相线弯曲（蓝→紫），用它做色域映射或渐变会偏紫。</p>
+<p><strong>IPT（Ebner &amp; Fairchild 1998）</strong>：XYZ→LMS，带符号幂 0.43，再线性组合；设计目标是等色相线笔直。后来的 ICtCp、Oklab 都沿用这个"LMS → 非线性 → 对立色"的三段结构。</p>
+<p><strong>ICtCp（BT.2100，2016）</strong>：线性 Rec.2020 RGB → LMS 用矩阵 (1/4096)·[1688 2146 262; 683 2951 462; 99 309 3688]，对 LMS 做 PQ 编码，再乘 (1/4096)·[2048 2048 0; 6610 −13613 7003; 17933 −17390 −543]。它是为 HDR 设计的：亮度轴 I 覆盖 0–10000 nit，色度子采样、Dolby Vision 重整形、HDR 色差度量都用它。</p>
+<p><strong>Oklab（Ottosson，2020）</strong>：拟合 CAM16 数据，立方根非线性，矩阵如下。</p>
+<pre>M1: XYZ(D65) → LMS                               M2: LMS^(1/3) → Lab
+[ 0.8189330101  0.3618667424 -0.1288597137 ]     [ 0.2104542553  0.7936177850 -0.0040720468 ]
+[ 0.0329845436  0.9293118715  0.0361456387 ]     [ 1.9779984951 -2.4285922050  0.4505937099 ]
+[ 0.0482003018  0.2643662691  0.6338517070 ]     [ 0.0259040371  0.7827717662 -0.8086757660 ]
+
+线性 sRGB → LMS（作者参考实现）                   LMS → 线性 sRGB
+[ 0.4122214708  0.5363325363  0.0514459929 ]     [  4.0767416621 -3.3077115913  0.2309699292 ]
+[ 0.2119034982  0.6806995451  0.1073969566 ]     [ -1.2684380046  2.6097574011 -0.3413193965 ]
+[ 0.0883024619  0.2817188376  0.6299787005 ]     [ -0.0041960863 -0.7034186147  1.7076147010 ]</pre>
+<p>Oklch 是它的极坐标形式（C = √(a²+b²)，h = atan2(b, a)）；OKHSL/OKHSV 是以 sRGB 色域为边界的取色器参数化。CSS Color 4 的 <code>oklab()</code>/<code>oklch()</code> 自 2023 年起被 Chrome 111、Firefox 113、Safari 15.4 支持，<code>color-mix(in oklab, …)</code> 是今天做渐变的推荐方式；CSS 的色域映射算法也在 Oklch 里做：固定 L 和 h，对 C 二分，直到裁剪后的 ΔE_OK &lt; 0.02（JND）。Photoshop、Unity、Godot 已把 Oklab 用于渐变与颜色操作。</p>
+<p><strong>Jzazbz（2017）与 ZCAM（2021）</strong>：PQ 型非线性的绝对亮度均匀空间，用于 HDR 广色域；ZCAM 允许明度超过参考白。</p>
+<h3>3.6 色貌模型与 ACES 2.0</h3>
+<p>CIECAM02（2002）与 CAM16（2017；CIE 248:2022 标准化为 CIECAM16）在 CAT 之后加亮度适应与双曲压缩，输出明度 J、彩度 M、色相 h 等属性，可以把 Hunt、Stevens 效应直接建模。ACES 2.0（2025 年 4 月发布）的输出变换就在简化版 Hellwig 2022 CAM 的 JMh 空间里工作：ACES → JMh → 只对 J 做色调曲线 → 只对 M 做彩度压缩 → 在 J、M 上做色域压缩（复用 ACES 1.3 RGC 的 powerP 曲线）→ 白限制 → 显示编码。这是从"逐通道 S 曲线"到"在色貌空间里分别处理明度、彩度、色相"的范式转移，第 6 章会展开。</p>
+<h3>3.7 感知空间在图形里的实际落点</h3>
+<ul>
+<li>纹理压缩编码器基本不用 ΔE：bc7enc/BC7E 的"perceptual"模式在加权 YCbCr 里度量（RGBA 权重 128/64/16/32），astcenc 的 <code>-perceptual</code> 只对法线贴图生效。</li>
+<li>画质指标：NVIDIA 的 ꟻLIP（HPG 2020）按观看距离与像素尺寸做 CSF 滤波，在 Hunt 调整后的 L*a*b* 里算色差，2021 年扩展为 HDR-ꟻLIP，是渲染论文比较图像的常用指标。</li>
+<li>UI 与渐变：在 Oklab 里插值不会出现 sRGB 插值的"中间发灰"和 Lab 插值的"蓝变紫"。</li>
+<li>色域映射与色调映射：见第 6 章，Oklch/JMh 保色相是核心诉求。</li>
+</ul>
+</section>
+<section id="s4">
+<h2><span class="num">04</span>线性工作流</h2>
+<h3>4.1 OETF、EOTF、OOTF 与两种"参考"</h3>
+<div class="tbl"><table><thead><tr><th>术语</th><th>映射</th><th>典型例子</th></tr></thead><tbody>
+<tr><td>OETF（光→电）</td><td>场景线性光 → 非线性信号</td><td>BT.709 摄像机曲线、HLG OETF、sRGB 编码</td></tr>
+<tr><td>EOTF（电→光）</td><td>非线性信号 → 显示光</td><td>BT.1886（伽马 2.4）、PQ、sRGB 解码</td></tr>
+<tr><td>OOTF（光→光）</td><td>场景光 → 显示光，= EOTF ∘ OETF</td><td>HLG 的系统伽马 1.2；SDR 视频约 1.2 的"渲染意图"</td></tr>
+</tbody></table></div>
+<p><strong>场景参考（scene-referred）</strong>的数值正比于场景中的光，线性、无上限：渲染器内部、OpenEXR、ACEScg 都是。<strong>显示参考（display-referred）</strong>的数值描述显示器输出：8 bit sRGB、BT.1886 视频、PQ 信号（PQ 是绝对显示参考，码值直接对应 cd/m²）。渲染管线的任务就是从前者到后者，色调映射是跨越两者的那一步。Windows 把 FP16 scRGB 在 HDR 显示上视为 scene-referred（1.0 = 80 nit），在 SDR 显示上视为 display-referred（1.0 = 参考白）。</p>
+<h3>4.2 伽马的历史与四条曲线</h3>
+<ul>
+<li><strong>CRT 物理</strong>：亮度 ∝ 电压^γ，γ 约 2.35–2.55；电脑用 LUT 把系统伽马调到 1.8–2.2，NTSC 规定 2.2，PAL 2.8。人眼的感知非线性（Stevens 幂律，Ebner–Fairchild 的 0.43 指数即倒数约 2.33）恰好与 CRT 非线性互为近似逆，这是部分巧合、部分工程选择，结果是 8 bit "伽马编码"同时解决了 CRT 驱动和感知量化两个问题。</li>
+<li><strong>Rec.709 OETF（1990）</strong>：V = 4.5L（L &lt; 0.018），否则 1.099L^0.45 − 0.099。BT.709 只定义相机侧 OETF，不定义显示 EOTF；因为有线性段，它整体"看起来像纯 1.9 幂"。Rec.2020 同形，12 bit 系统给出高精度常数 α = 1.09929682680944、β = 0.018053968510807。</li>
+<li><strong>BT.1886 EOTF（2011）</strong>：L = a·max(V + b, 0)^2.4，a、b 由白电平与黑电平导出，用来让平板"模拟 CRT 参考特性"；BT.2390 把参考白写成 100 cd/m²。</li>
+<li><strong>sRGB（HP + Microsoft 1996，IEC 61966-2-1:1999）</strong>：</li>
+</ul>
+<pre>编码：C' = 12.92 C                 (C  &lt;= 0.0031308)
+      C' = 1.055 C^(1/2.4) - 0.055  (C  &gt;  0.0031308)
+解码：C  = C'/12.92                (C' &lt;= 0.04045)
+      C  = ((C' + 0.055)/1.055)^2.4 (C' &gt;  0.04045)</pre>
+<p>观看环境：80 cd/m²、D65、环境 64 lx、1% 眩光。分段的原因：纯幂函数在 0 处斜率无穷大，8 bit 下最暗约 20 级码值无法区分；线性段同时补偿眩光。1996 草案阈值 0.03928 有微小不连续，1999 版改为 0.04045 后近似连续，但斜率仍从 1/12.92 跳到 1/12.70。</p>
+<ul>
+<li><strong>Apple 伽马 1.8</strong>：Macintosh 长期用 1.8 解码，直到 Mac OS X 10.6（2009-09）改为 2.2 与 sRGB 对齐。Display P3（2015）用 P3 原色、D65 白点和 sRGB 的传递曲线。</li>
+</ul>
+<h3>4.3 sRGB 曲线与纯 2.2 幂的差异</h3>
+<div class="tbl"><table><thead><tr><th>8 bit 码值</th><th>sRGB → 线性</th><th>2.2 幂 → 线性</th><th>比值</th></tr></thead><tbody>
+<tr><td>1</td><td>0.000304</td><td>0.000005</td><td>59.8×</td></tr>
+<tr><td>8</td><td>0.002428</td><td>0.000493</td><td>4.93×</td></tr>
+<tr><td>16</td><td>0.005182</td><td>0.002263</td><td>2.29×</td></tr>
+<tr><td>32</td><td>0.014444</td><td>0.010398</td><td>1.39×</td></tr>
+<tr><td>64</td><td>0.051269</td><td>0.047776</td><td>1.073×</td></tr>
+<tr><td>100</td><td>0.127438</td><td>0.127530</td><td>0.999</td></tr>
+<tr><td>128</td><td>0.215861</td><td>0.219520</td><td>0.983</td></tr>
+<tr><td>192</td><td>0.527115</td><td>0.535642</td><td>0.984</td></tr>
+<tr><td>224</td><td>0.745404</td><td>0.751895</td><td>0.991</td></tr>
+</tbody></table></div>
+<p>暗部（码值 &lt; 90）sRGB 明显比 2.2 亮，中高段 sRGB 暗不到 2%；按码值算最大差 8.5/255。IEC 文本把参考显示器 EOTF 描述为"2.2 纯幂加眩光项"，编码函数却是分段曲线，所以"sRGB 显示器该用哪条"没有唯一答案；DXGI 把 <code>G22_NONE_P709</code> 注释为"用 sRGB 曲线实现，约等于 2.2"。两种实现混用会在叠加处出现接缝，Windows 近年的 HDR 与 Auto HDR 争议多源于此。</p>
+<p><strong>50% 灰的归属</strong>：线性 0.5 → sRGB 0.7354 → 码值 187.5；2.2 幂给 186.1，2.4 幂给 191.0。反过来 128/255 → 线性 0.2159。FreeType 文档说"约 186 才是 50% 亮度，128 太暗"。</p>
+<h3>4.4 PQ 与 HLG</h3>
+<p><strong>PQ（SMPTE ST 2084，2014；Dolby）</strong>：按 Barten 对比敏感度模型拟合 0–10000 cd/m²。</p>
+<pre>E' = ((c1 + c2 Y^m1) / (1 + c3 Y^m1))^m2,  Y = L / 10000
+m1 = 2610/16384 = 0.1593017578125   m2 = 2523/32 = 78.84375
+c1 = 3424/4096 = 0.8359375  c2 = 2413/128 = 18.8515625  c3 = 2392/128 = 18.6875</pre>
+<div class="tbl"><table><thead><tr><th>cd/m²</th><th>E′</th><th>10 bit 全范围</th><th>10 bit 窄范围（64–940）</th></tr></thead><tbody>
+<tr><td>0.005</td><td>0.0151</td><td>15</td><td>77</td></tr>
+<tr><td>1</td><td>0.1499</td><td>153</td><td>195</td></tr>
+<tr><td>80</td><td>0.4859</td><td>497</td><td>490</td></tr>
+<tr><td>100</td><td>0.5081</td><td>520</td><td>509</td></tr>
+<tr><td>203（BT.2408 HDR 参考白）</td><td>0.5807</td><td>594</td><td>573</td></tr>
+<tr><td>1000</td><td>0.7518</td><td>769</td><td>723</td></tr>
+<tr><td>10000</td><td>1.0</td><td>1023</td><td>940</td></tr>
+</tbody></table></div>
+<p>BT.2390 的结论：12 bit PQ 在 0.001–10000 cd/m² 全程低于可见量化阈值；BT.1886 在 100 cd/m² 峰值时 12 bit 足够，拉到 10000 cd/m² 则明显超阈值；10 bit 下三种系统都略高于阈值，靠相机噪声掩蔽；纯幂函数要覆盖 10000 nit 需要 15 bit。</p>
+<p><strong>HLG（BBC/NHK，ARIB STD-B67 2015，BT.2100 2016）</strong>：</p>
+<pre>E' = sqrt(3E)                (0 &lt;= E &lt;= 1/12)
+E' = a ln(12E - b) + c        (1/12 &lt; E &lt;= 1)
+a = 0.17883277  b = 1 - 4a = 0.28466892  c = 0.5 - a ln(4a) = 0.55991073
+OOTF 系统伽马 γ = 1.2 + 0.42 log10(L_W / 1000)</pre>
+<p>HLG 是相对场景光（scene-referred），SDR 电视可直接显示，不带元数据；PQ 是绝对亮度，需要元数据与显示端映射。10 bit 窄范围码值：黑 64、峰 940。</p>
+<p><strong>分级用的对数编码</strong>：Cineon（Kodak 1992，10 bit 印片密度，黑 95 白 685）、ACEScc（(log₂x + 9.72)/17.52，纯对数）、ACEScct（在 0.0078125 以下加线性 toe，折点 0.155251）、Sony S-Log3、ARRI LogC3/LogC4。它们的用途是让调色工具的每一档曝光占相同码值区间，不是用来做光照计算的。</p>
+<h3>4.5 线性工作流：为什么所有"加法"都要在线性光里做</h3>
+<p>光传输是线性的：f(x + y) = f(x) + f(y)。光照与多光源累加、Alpha 混合、mip 与双线性/三线性滤波、MSAA/TAA resolve、bloom/DOF/模糊，数学上都是对辐射量求加权和，必须对线性值做。GPU Gems 3 第 24 章（Gritz &amp; d'Eon，2007）的经典例子：</p>
+<ul>
+<li><strong>mip 变暗</strong>：纹素 1.0、1.0、0、0 平均为 0.5；若 0.5 被当作伽马 2.0 编码显示，只有 25% 亮度，粗 mip 整体变暗、级间"脉动"。</li>
+<li><strong>光照衰减过陡</strong>：Lambert 球上 N·L = 0.5 的点应有一半亮度，伽马空间下显示为 0.25，明暗交界过锐、角落过暗；仅提亮画面无法修正。</li>
+<li><strong>两个错误互相抵消的后果</strong>：不线性化纹理、也不编码输出，会出现肤色随光照漂移、高光叠到漫反射上变黄、次表面散射被压扁并在阴影边缘产生青绿光晕。</li>
+<li><strong>高光变宽偏色</strong>：Hable 2010 指出伽马空间里高光从白→黄→绿漂移、衰减过软。</li>
+</ul>
+<p>各引擎的转变：</p>
+<div class="tbl"><table><thead><tr><th>引擎</th><th>事实</th></tr></thead><tbody>
+<tr><td>Direct3D 9</td><td><code>D3DSAMP_SRGBTEXTURE</code> 采样时线性化、<code>D3DRS_SRGBWRITEENABLE</code> 写入时编码，默认都关；DX9 级硬件在 sRGB 空间混合，DX10 级硬件在线性空间混合（<code>POSTBLENDSRGBCONVERT</code> 能力位）</td></tr>
+<tr><td>Valve Source</td><td>GDC 2008：颜色纹理存伽马、像素着色器在线性运算；DX9/DX10 硬件混合方式不同导致烟雾更厚、辉光变化，美术改了 40 个材质；Xbox 360 的 sRGB 读取是分段线性近似，暗部有损</td></tr>
+<tr><td>Unreal Engine 3</td><td>UDK 文档：纹理默认 sRGB，"在计算光照前转换到线性空间"，法线/遮罩不校正。UE3 已是线性光照，"UE3 伽马空间光照"的说法不准确</td></tr>
+<tr><td>CryEngine 3（2010）</td><td>加入 gamma-correct rendering（<code>r_UseSRGB</code>），只作用于颜色纹理</td></tr>
+<tr><td>Unity</td><td>最早的 Linear Lighting 文档是 3.5.1（2012）；5.5（2016-11）起移动端 Linear 需 ES 3.x / Metal；新项目默认至今仍是 Gamma</td></tr>
+<tr><td>Unreal 4/5</td><td>始终线性，纹理 sRGB 复选框标记存储编码，Normalmap 压缩自动关 sRGB</td></tr>
+<tr><td>Godot 4</td><td>3D 线性 HDR，2D 默认 sRGB LDR；Compatibility 渲染器在 sRGB 空间混合，无 HDR</td></tr>
+</tbody></table></div>
+<p><strong>移动端为什么还在用 Gamma 空间</strong>：sRGB 纹理解码（TMU 过滤前）和 sRGB 帧缓冲编码（ROP 混合后）在 ES 3.0/Metal 硬件上都是免费的；真正的代价是线性 8 bit 不可用，线性管线必须用 FP16 或 R11G11B10 的 HDR 目标再做色调映射写回，带宽翻倍，对分块渲染的移动 GPU 来说就是功耗。Godot 的 Mobile 渲染器默认 R10G10B10A2，开启 hdr_2d 后才换 RGBA16F，文档明说"带宽增加、性能下降"。Gjøl 还指出部分移动 GPU 的混合单元在混合前量化到低精度，sRGB "可能不可用或不正确"。</p>
+<h3>4.6 硬件里的 sRGB</h3>
+<ul>
+<li><strong>纹理</strong>：EXT_texture_sRGB（2007）定义 <code>SRGB8_ALPHA8</code> 与 sRGB 版 DXT；解码阈值 0.04045；alpha 永远不变。规范"偏好"每个采样点解码后再过滤，GeForce 8 起如此，GeForce FX/6/7 是过滤后转换（错误）。Issue 13：解码后的 8 bit sRGB 需要 12–16 bit 线性才不丢细节；Issue 24：mip 应在线性空间降采样再编码。</li>
+<li><strong>帧缓冲</strong>：EXT_framebuffer_sRGB（2010）：<code>GL_FRAMEBUFFER_SRGB</code> 开启后，混合时目标先解码为线性、与线性源混合、结果编码回 sRGB；清屏颜色视为线性再编码。</li>
+<li><strong>DXGI</strong>：带 <code>_SRGB</code> 的只有 R8G8B8A8、B8G8R8A8、B8G8R8X8、BC1/2/3/7；BC4/5/6H、RGB10A2、FP16、R11G11B10、RGB9E5 都没有。官方备注：<code>_SRGB</code> 格式的 A 通道存伽马 1.0 数据。</li>
+<li><strong>Vulkan</strong>：<code>*_SRGB</code> 格式覆盖 R8、RG8、RGB(A)8、BC1/2/3/7、ETC2、ASTC 全部块尺寸、PVRTC；EAC、BC4/5/6H、ASTC HDR 无。交换链色彩空间 <code>SRGB_NONLINEAR</code>、<code>DISPLAY_P3_NONLINEAR</code>、<code>EXTENDED_SRGB_LINEAR</code>（scRGB）、<code>HDR10_ST2084</code>、<code>HDR10_HLG</code>、<code>BT2020_LINEAR</code> 等；交换链为 <code>*_SRGB</code> 格式时着色器写入线性值由实现编码，UNORM 格式则要自己编码。</li>
+<li><strong>Metal</strong>：<code>CAMetalLayer</code> 的 <code>rgba16Float</code> + extended linear sRGB/P3 为 EDR 路径；只显示不编辑可用 <code>bgr10a2Unorm</code> + <code>itur_2100_PQ</code>。</li>
+<li><strong>Android 8.0+</strong>：<code>wideColorGamut</code> 色彩模式；EGL 的 <code>scrgb_linear</code>/<code>display_p3</code> 扩展；Android 14 的 <code>setExtendedRangeBrightness</code>。</li>
+</ul>
+<h3>4.7 精度、浮点格式与条带</h3>
+<p>8 bit 线性的相邻码值相对步长是 1/c：1→2 为 100%，10→11 为 10%，只有码值 &gt; 100 才低于 1%。要在相对亮度 0.01 处达到 1% 步长需 10⁴ 级（13.3 bit），0.001 处需 16.6 bit。医学显示的 DICOM GSDF 把 0.05–4000 cd/m² 按 Barten 模型分成 1023 个 JND，这与 PQ 的 10 bit 思路一致。</p>
+<div class="tbl"><table><thead><tr><th>格式</th><th>符号/尾数/指数</th><th>最大值</th><th>1.0 处相对步长</th><th>十进制有效位</th><th>用途</th></tr></thead><tbody>
+<tr><td>FP32</td><td>1/23/8</td><td>3.4 × 10³⁸</td><td>1.2 × 10⁻⁷</td><td>7.2</td><td>单 pass 内光照累加</td></tr>
+<tr><td>FP16</td><td>1/10/5</td><td>65504</td><td>0.098%</td><td>3.3</td><td>scene-linear 缓冲的标准选择；30 档正规范围</td></tr>
+<tr><td>RGB9E5</td><td>无/9×3 共享/5</td><td>65408</td><td>取决于最大通道</td><td>3.2</td><td>只读 HDR 纹理、光照贴图；不能做渲染目标</td></tr>
+<tr><td>R11G11B10F</td><td>无/6/6/5</td><td>65024 / 64512</td><td>1.56% / 3.1%（蓝）</td><td>2.5 / 2.3</td><td>带宽敏感的 HDR 目标；无符号，蓝通道精度低会带来轻微色相偏移</td></tr>
+<tr><td>RGB10A2</td><td>10 bit 定点</td><td>1.0</td><td>0.1%</td><td>—</td><td>LDR/sRGB 式输出、HDR10 交换链、Godot Mobile</td></tr>
+<tr><td>LogLuv 32（Ward 1998）</td><td>16 bit 对数亮度 + u′v′ 各 8 bit</td><td>约 128 档</td><td>—</td><td>—</td><td>旧世代 HDR 目标（Heavenly Sword），不能直接混合</td></tr>
+</tbody></table></div>
+<p>Frostbite 的判断：浮点本身近似对数、与亮度感知匹配，高值处精度低不是问题；小浮点格式约 30 档动态范围，用上一帧曝光预乘后足够；R11G11B10 的蓝通道会有轻微色相偏移。OpenEXR 的 half 与 GPU 的 FP16 完全一致，"30 档、每档 1024 步"。</p>
+<p><strong>YCoCg</strong>（Malvar &amp; Sullivan 2003）：Y = R/4 + G/2 + B/4，Co = R/2 − B/2，Cg = −R/4 + G/2 − B/4；YCoCg-R 用 lifting 做到可逆。Mavridis &amp; Papaioannou 2012 的 Compact YCoCg Frame Buffer 每像素只存 Y 加一个色度通道（棋盘交错），读取时边缘导向去马赛克，用于压缩 G-buffer 与 HDR 目标带宽。</p>
+<p><strong>抖动（Gjøl，Playdead，GDC 2016）</strong>：截断量化平均偏暗 0.5 LSB；均匀噪声仍有"噪声调制"；正确做法是三角分布噪声（两个 hash 相加减 0.5）、可再加蓝噪声整形；<strong>在被量化的那个空间加噪声</strong>（写 sRGB 目标就先编码再加 1/255 级噪声，硬件自动编码时做 <code>srgb2lin(dither(lin2srgb(c)))</code>）；每帧换噪声图案配合 TAA；预乘 alpha 让噪声在混合前作用于正确的量，由此能混合小于 1/255 的颜色。天空、雾、光晕、衰减这类平滑渐变最易条带，有纹理噪声的区域会掩蔽。</p>
+<h3>4.8 纹理编码与颜色</h3>
+<div class="tbl"><table><thead><tr><th>格式</th><th>来源</th><th>bpp</th><th>sRGB 变体</th><th>备注</th></tr></thead><tbody>
+<tr><td>BC1/2/3（DXT1/3/5）</td><td>S3TC 1998</td><td>4/8/8</td><td>有</td><td>反照率主力</td></tr>
+<tr><td>BC4/BC5</td><td>D3D10</td><td>4/8</td><td>无</td><td>单/双通道：粗糙度、法线</td></tr>
+<tr><td>BC6H</td><td>D3D11</td><td>8</td><td>无</td><td>HDR 半精度 RGB：天空盒、光照贴图</td></tr>
+<tr><td>BC7</td><td>D3D11</td><td>8</td><td>有</td><td>高质量 RGBA</td></tr>
+<tr><td>ETC2/EAC</td><td>ES 3.0 核心</td><td>4/8</td><td>ETC2 有，EAC 无</td><td>Android 基线</td></tr>
+<tr><td>ASTC</td><td>Arm/AMD，Khronos 2012</td><td>8.0 (4×4) 到 0.89 (12×12)</td><td>每种块尺寸都有</td><td>sRGB 只作用于 RGB；HDR profile 输出 FP16，不兼容 sRGB</td></tr>
+<tr><td>PVRTC1/2</td><td>Imagination</td><td>2/4</td><td>有</td><td>旧 iOS</td></tr>
+</tbody></table></div>
+<p>规则：反照率/基色、自发光用 sRGB；法线、粗糙度、金属度、遮挡、高度等数据纹理必须线性；alpha 永远线性。glTF 2.0 原文：<code>baseColorTexture</code> 的 RGB 必须 sRGB 编码、A 为线性覆盖率、纹素不得预乘；<code>emissiveTexture</code> RGB 为 sRGB；法线与金属粗糙度为线性；所有彩色纹理的有效色域是 BT.709，图像内嵌 ICC 必须忽略；<code>alphaMode</code> BLEND 用 Porter–Duff over。KTX 2.0 要求 DFD 的 transferFunction 与 <code>*_SRGB</code> 格式一致，非线性传递函数下 alpha 样本必须标记为线性，Basis Universal 超压缩必须保留这些字段。</p>
+<h3>4.9 Alpha、混合、抗锯齿与渐变</h3>
+<p><strong>预乘 alpha</strong>（Porter–Duff，SIGGRAPH 1984）：直通 over 为 C_o = (α_s C_s + (1−α_s) α_d C_d)/α_o，预乘 over 为 C′_o = C′_s + (1−α_s) C′_d，GPU 混合因子 <code>ONE, ONE_MINUS_SRC_ALPHA</code>。Alvy Ray Smith（1995）指出非预乘的 over 不是封闭运算，每次合成都要除以新 alpha；预乘形式是仿射运算、满足结合律，层可以预先合成成 sprite。McDonald（NVIDIA，2013）的例子：红 (α=1) 与近透明绿 (α=0.1) 直通平均得到 (0.5, 0.5, 0, 0.55)，绿色被放大成边缘绿边；预乘后是 (0.5, 0.05, 0, 0.55)。Skia 的 surface 必须预乘，Core Graphics 的图像只支持预乘，glTF 纹理不预乘但用 over 混合。预乘应在线性空间做，整数格式下会损失暗色精度。</p>
+<p><strong>文字与 UI 的伽马</strong>：覆盖率是面积比例，是线性量，应在线性空间混合；但线性混合加伽马编码会让文字"变浅变细"，FreeType 因此有 stem darkening（只应在做伽马校正时启用）。Windows ClearType 的 <code>GammaLevel</code> 范围 1000–2200、默认 1900；Photoshop 的"Blend RGB Colors Using Gamma 1.00"默认关、"Blend Text Colors Using Gamma 1.45"默认开。这是渲染理论与排版习惯的妥协点：数学正确的线性混合，人眼反而觉得字细。</p>
+<p><strong>抗锯齿</strong>：覆盖率与 alpha 同理必须线性平均；sRGB 目标的 MSAA resolve 应先解码再平均再编码。HDR 下单个超亮样本会压倒其余样本，边缘失去抗锯齿、出现萤火虫，Karis（2013）提出 resolve 前做 T(c) = c/(1 + luma)、resolve 后做逆变换，等价于权重 1/(1 + luma) 的加权平均；UE4 TAA（2014）用同样的 luma 权重；Lottes（2016）用 max3(c) 代替 luma 做优化版。</p>
+<p><strong>渐变插值</strong>：CSS Color 4 规定未指定时默认在 Oklab 插值（legacy sRGB 颜色之间仍在伽马 sRGB 插值以兼容），带 alpha 先预乘，色相插值默认取短弧。<code>color-mix(in oklab, …)</code> 与 <code>linear-gradient(in oklch, …)</code> 可指定空间。Oklab 不适合做图像混合与滤波，那些仍该在线性 RGB 做。</p>
+</section>
+<section id="s5">
+<h2><span class="num">05</span>曝光与 HDR</h2>
+<h3>5.1 辐射度量与光度量</h3>
+<p>渲染器算的是辐射量（能量），美术和相机用的是光度量（经 V(λ) 加权的能量）。两套单位一一对应，换算常数就是 683 lm/W。</p>
+<div class="tbl"><table><thead><tr><th>辐射度量</th><th>单位</th><th>光度量</th><th>单位</th><th>引擎里的用途</th></tr></thead><tbody>
+<tr><td>辐射通量 Φe</td><td>W</td><td>光通量 Φv</td><td>lm</td><td>点光、聚光的总输出（灯泡标称值）</td></tr>
+<tr><td>辐射强度 Ie</td><td>W/sr</td><td>发光强度 Iv</td><td>cd = lm/sr</td><td>点光单位方向强度；聚光的 cd 与 lm 换算依赖锥角</td></tr>
+<tr><td>辐照度 Ee</td><td>W/m²</td><td>照度 Ev</td><td>lx = lm/m²</td><td>太阳、方向光（垂直于光线方向的照度）</td></tr>
+<tr><td>辐亮度 Le</td><td>W/(sr·m²)</td><td>亮度 Lv</td><td>cd/m² = nit</td><td>面光源、天空、自发光、显示器</td></tr>
+</tbody></table></div>
+<p>Φv = 683 · ∫ Φe(λ) V(λ) dλ；1 W 的 555 nm 单色光正好是 683 lm，白光 LED 约 100–200 lm/W。Lambert 表面的亮度 L = ρ·E/π：10 万 lx 阳光下的白纸（ρ ≈ 0.9）约 2.9 万 cd/m²。</p>
+<h3>5.2 真实世界的亮度与照度</h3>
+<div class="tbl"><table><thead><tr><th>场景</th><th>亮度 cd/m²</th><th>场景</th><th>照度 lx</th></tr></thead><tbody>
+<tr><td>人眼绝对阈值</td><td>10⁻⁶</td><td>无月阴天夜（星光）</td><td>0.0001</td></tr>
+<tr><td>满月下的场景</td><td>0.0014</td><td>满月晴夜</td><td>0.05–0.3</td></tr>
+<tr><td>暗视/中间视阈值</td><td>0.005</td><td>夜间城市街道</td><td>30</td></tr>
+<tr><td>中间视/明视阈值</td><td>5</td><td>起居室</td><td>50</td></tr>
+<tr><td>日出日落的场景</td><td>25</td><td>办公室</td><td>320–500</td></tr>
+<tr><td>SMPTE 影院银幕</td><td>55</td><td>阴天</td><td>1000</td></tr>
+<tr><td>sRGB 参考显示器白</td><td>80</td><td>正午阴天</td><td>1000–2000</td></tr>
+<tr><td>典型 LCD 峰值</td><td>250</td><td>全日光（非直射）</td><td>10000–25000</td></tr>
+<tr><td>阴天的场景</td><td>700</td><td>直射阳光</td><td>32000–100000</td></tr>
+<tr><td>正午阴天天空</td><td>1000</td><td>很亮的阳光</td><td>120000</td></tr>
+<tr><td>晴空</td><td>3000–10000</td><td></td><td></td></tr>
+<tr><td>荧光灯管</td><td>12000</td><td></td><td></td></tr>
+<tr><td>磨砂白炽灯泡</td><td>1.3 × 10⁵</td><td></td><td></td></tr>
+<tr><td>地平线太阳盘</td><td>6 × 10⁵</td><td></td><td></td></tr>
+<tr><td>正午太阳盘</td><td>1.6 × 10⁹</td><td></td><td></td></tr>
+</tbody></table></div>
+<p>人眼总范围约 14 个数量级（10⁻⁶ 到 10⁸ cd/m²），单次适应下同时可见约 4–5 个数量级（常见引述，未找到一手出处）。显示器只有 2–3 个数量级（LCD 0.1–300 nit，OLED HDR 0.0005–1000 nit），所以"HDR 渲染"的核心任务是把场景的十几个数量级压到显示的两三个里。</p>
+<p>Frostbite 2014 年在斯德哥尔摩实测（7 月晴天）：正午水平面天空 + 太阳 110000 lx，其中天空 19300、太阳 90700；垂直太阳方向的太阳照度 123100 lx。理论推导：太阳盘亮度 1.6 × 10⁹ cd/m² 乘立体角 6.8 × 10⁻⁵ sr 得 105000–114000 lx。引擎里"太阳 = 100000 lx"由此而来。</p>
+<h3>5.3 EV100 与物理曝光（Frostbite 2014）</h3>
+<ul>
+<li>曝光值定义：EV = log₂(L·S/K)，S 为 ISO，K 为反射式测光常数（ISO 2720 建议 10.6–13.4，Canon/Nikon/Sekonic 用 12.5，Minolta/Pentax 用 14）。EV100 即 S = 100 时的值，L = 2^EV100 · 12.5/100 = 2^(EV100 − 3) cd/m²。</li>
+<li>由相机参数：EV100 = log₂(N²/t) − log₂(S/100)，N 光圈、t 快门秒。曝光补偿：EV100′ = EV100 − EC。</li>
+<li>亮度对照（K = 12.5）：EV 0 → 0.125 cd/m²，3 → 1，6 → 8，9 → 64，12 → 512，15 → 4096，16 → 8192。无月夜约 −2 EV，室内 5–7 EV，阴天约 12 EV，晴天 14–15 EV。</li>
+<li>饱和度基准感光度：H_sbs = 78/S，78 这个常数让 18% 灰成像为 12.7%（留半档高光余量），L_max = 78·N²/(S·q·t)，镜头透过率 q = 0.65。</li>
+<li>曝光倍率：maxLuminance = 1.2 · 2^EV100（78/(100 × 0.65) = 1.2），exposure = 1/maxLuminance，finalColor = color × exposure。</li>
+</ul>
+<pre>EV100 = log2(aperture^2 / shutterTime * 100 / ISO)     // 相机参数
+EV100 = log2(avgLuminance * 100 / 12.5)                // 自动曝光
+exposure = 1 / (1.2 * 2^(EV100 - EC))</pre>
+<p><strong>预曝光（pre-exposure）</strong>：光照缓冲用 FP16（最大 65504，最小正规化 6.1 × 10⁻⁵）；10 万 lx 的太阳与 0.001 cd/m² 的夜景无法同时装进去，所以 Frostbite 在每个光照 shader 的末尾乘上上一帧的曝光，再写入缓冲；单 pass 内各光源以 FP32 累加后再写 FP16。UE 4.19 起同样把上一帧曝光在写入 scene color 前乘入（Apply Pre-exposure 选项），Unity HDRP 一律以 EV100 表达曝光。</p>
+<h3>5.4 引擎的物理光单位</h3>
+<div class="tbl"><table><thead><tr><th>引擎</th><th>点光/聚光</th><th>方向光</th><th>面光</th><th>天空/自发光</th><th>曝光参数</th></tr></thead><tbody>
+<tr><td>Frostbite（2014）</td><td>lm 或 cd</td><td>lx</td><td>lm 或 nit</td><td>nit 或 EV</td><td>EV100、ISO/光圈/快门</td></tr>
+<tr><td>Unreal（4.19，2018）</td><td>cd、lm 或无单位</td><td>lx</td><td>cd、lm、nit</td><td>无单位倍率</td><td>EV100（Extend default luminance range）、物理相机</td></tr>
+<tr><td>Unity HDRP（2018）</td><td>lm、cd、lx（距离）、EV100</td><td>lx</td><td>lm、nit、EV100</td><td>nit、EV100</td><td>EV100；1 单位 = 1 m</td></tr>
+<tr><td>Unity Built-in/URP</td><td>无单位强度</td><td>无单位</td><td>无</td><td>无</td><td>无</td></tr>
+</tbody></table></div>
+<p>HDRP 速查表：蜡烛 12.57 lm、房间顶灯 400–800 lm、路灯 1000–40000 lm、正午太阳 100000 lx、月光 &lt; 1 lx；60 W 白炽灯约 800 lm。</p>
+<h3>5.5 自动曝光</h3>
+<ol>
+<li><strong>对数平均亮度</strong>（Reinhard 2002）：L̄ = exp((1/N) Σ log(δ + L))，缩放 L′ = (a/L̄)·L，key 值 a = 0.18（低调 0.09/0.045，高调 0.36/0.72）。</li>
+<li><strong>直方图法</strong>（Valve 2008，Frostbite、UE、HDRP 采用）：对 log 亮度建 64 桶直方图，取两个百分位之间的平均，剔除极亮极暗；UE 文档建议低 70–80、高 80–95，HDRP 默认 40–90。</li>
+<li><strong>时间适应</strong>：L_t = L_{t−1} + (L_target − L_{t−1})(1 − e^(−Δt·speed))；HDRP 默认暗→亮 3、亮→暗 1，与人眼"暗适应更慢"一致。</li>
+<li><strong>中灰锚点</strong>：18% 反射率（Zone V）；HDRP 目标中灰默认 12.5%，可选 14%、18%。</li>
+<li><strong>曝光必须在色调映射前</strong>：色调曲线的 toe/shoulder 固定在输入域并以中灰为锚，先乘曝光才能把场景中灰落在曲线线性段；之后再缩放会压扁肩部。Frostbite 把曝光前移到光照阶段后，管线末端不再乘曝光。</li>
+<li><strong>按像素亮度曝光的缺陷</strong>：10% 灰与 90% 灰的场景会得到相同曝光（反照率混入），按照度曝光更准但成本高。</li>
+</ol>
+</section>
+<section id="s6">
+<h2><span class="num">06</span>色调映射</h2>
+<h3>6.1 色调映射算子公式与参数</h3>
+<p><strong>Reinhard（2002）</strong>：L_d = L/(1+L)；扩展版 L_d = L(1 + L/L_white²)/(1+L)。按亮度做保色相但高光不趋白，逐通道做会去饱和并偏色。</p>
+<p><strong>Hable / Uncharted 2（2010）</strong>：</p>
+<pre>A=0.15 B=0.50 C=0.10 D=0.20 E=0.02 F=0.30 W=11.2 ExposureBias=2.0
+f(x) = ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F)) - E/F
+color = f(ExposureBias*x) / f(W)      // 然后 sRGB 编码</pre>
+<p>A 肩强度、B 线性强度、C 线性角、D toe 强度、E/F toe 分子分母。Hable 2017 年改为 toe/linear/shoulder 三段幂曲线（参数 toeStrength、toeLength、shoulderStrength、shoulderLength、shoulderAngle、gamma），Unity HDRP 的 Custom 模式就是它。</p>
+<p><strong>Hejl–Burgess-Dawson（2010）</strong>：x = max(0, c − 0.004)，y = x(6.2x + 0.5)/(x(6.2x + 1.7) + 0.06)，输出已含伽马。</p>
+<p><strong>ACES RRT + ODT（1.x，2014）</strong>：RRT = glow 模块 → 红色修正 → AP0→AP1 → 整体去饱和（0.96）→ 分段样条逐通道；ODT 含暗→昏暗环绕 0.9811 伽马与再次去饱和；sRGB ODT 为 100 nit 昏暗环绕。两个常用拟合：</p>
+<pre>Narkowicz（2016，sRGB 输入含 0.6 预曝光）：
+y = saturate((x*(2.51x+0.03)) / (x*(2.43x+0.59)+0.14))
+
+Stephen Hill（BakingLab，AP1 中逐通道）：
+ACESInputMat  = [0.59719 0.35458 0.04823; 0.07600 0.90834 0.01566; 0.02840 0.13383 0.83777]
+RRTAndODTFit(v) = (v*(v+0.0245786) - 0.000090537) / (v*(0.983729v+0.4329510) + 0.238081)
+ACESOutputMat = [1.60475 -0.53108 -0.07367; -0.10208 1.10813 -0.00605; -0.00327 -0.07276 1.07602]</pre>
+<p><strong>Unreal Filmic（4.15 起默认，Karis）</strong>：在 AP1 中运算，Slope 0.88、Toe 0.55、Shoulder 0.26、Black Clip 0、White Clip 0.04；附 Blue Correction（默认 0.6）与 Expand Gamut（默认 1.0）。</p>
+<p><strong>Lottes（GDC 2016，AMD）</strong>：z = x^a，y = z/(z^d·b + c)，a 为对比、d 为肩；由 tonemap(midIn) = midOut、tonemap(hdrMax) = 1 解出 b、c。示例 midIn 0.18、midOut 0.18、hdrMax 64、contrast 1.3、shoulder 0.995。提出"path to white"串扰：按 max(RGB) 做曲线，再用 ratio = pow(rgb/peak, …) 与 lerp(ratio, 1, peak^crosstalk) 控制高光趋白速度。</p>
+<p><strong>GT Tonemapper（Uchimura，CEDEC 2017，Gran Turismo Sport）</strong>：P = 1.0 峰值、a = 1.0 对比、m = 0.22 线性段起点、l = 0.4 线性段长度、c = 1.33 黑压缩、b = 0 底座；toe 幂、线性段、指数肩三段用 smoothstep 过渡。</p>
+<p><strong>Khronos PBR Neutral（2024-05）</strong>：</p>
+<pre>startCompression = 0.76, desaturation = 0.15      // linear Rec.709 进出
+x = min(r,g,b); offset = x &lt; 0.08 ? x - 6.25x² : 0.04; color -= offset
+peak = max(r,g,b); if (peak &lt; startCompression) return color
+d = 1 - startCompression; newPeak = 1 - d²/(peak + d - startCompression)
+color *= newPeak/peak
+g = 1 - 1/(desaturation*(peak-newPeak) + 1)
+return mix(color, vec3(newPeak), g)</pre>
+<p>面向电商与产品可视化：无风格化、按 max-RGB 压缩保色相、受控趋白。Blender、three.js、Babylon.js、Filament 已采用。</p>
+<p><strong>AgX（Sobotka；Blender 4.0 默认，2023-11）</strong>：log2 编码（约 −10 到 +6.5 档绕 0.18 中灰）→ "inset" 矩阵把三基色向内收 → sigmoid → "outset" 矩阵。inset 的作用是避免逐通道曲线把饱和色塌缩到 R/G/B/C/M/Y 六色（Sobotka 称之为 Notorious Six）。Wrensch 的 Minimal AgX：</p>
+<pre>inset  = [0.842479 0.042328 0.042376; 0.078434 0.878469 0.078434; 0.079224 0.079166 0.879143]
+outset = [1.196879 -0.052897 -0.052972; -0.098021 1.151903 -0.098043; -0.099030 -0.098961 1.151074]
+min_ev = -12.47393, max_ev = 4.026069
+v = (clamp(log2(inset*v), min_ev, max_ev) - min_ev) / (max_ev - min_ev)
+sigmoid(x) = 15.5x⁶ - 40.14x⁵ + 31.96x⁴ - 6.868x³ + 0.4298x² + 0.1191x - 0.00232
+look: Punchy = CDL(slope 1, power 1.35, sat 1.4); 输出 outset 后按 2.2 EOTF 线性化</pre>
+<p><strong>Tony McMapface（Stachowiak，2023）</strong>：48³ 3D LUT，输入 linear Rec.709 经 x/(x+1) 编码采样；目标是压缩"感知等价亮度"（考虑 Helmholtz–Kohlrausch）、保色相、选择性去饱和、不加对比与饱和度。Bevy 默认。</p>
+<p><strong>Unity HDRP Neutral</strong>：Hable 变体 a=0.2、b=0.29、c=0.24、d=0.272、e=0.02、f=0.3、whiteLevel 5.3、whiteClip 1.0。</p>
+<h3>6.2 算子对照</h3>
+<div class="tbl"><table><thead><tr><th>算子</th><th>年份</th><th>通道方式</th><th>色相行为</th><th>观感</th><th>使用者</th></tr></thead><tbody>
+<tr><td>线性裁剪</td><td>—</td><td>逐通道</td><td>硬裁剪塌缩到六色</td><td>平淡、溢出</td><td>早期游戏</td></tr>
+<tr><td>Reinhard</td><td>2002</td><td>亮度或逐通道</td><td>亮度版保色相；逐通道去饱和</td><td>低对比、发灰</td><td>教学、UI 示例</td></tr>
+<tr><td>Drago</td><td>2003</td><td>亮度</td><td>保色相</td><td>对数、低对比</td><td>HDR 软件</td></tr>
+<tr><td>Hable / Uncharted 2</td><td>2010</td><td>逐通道</td><td>高光趋白、有偏移</td><td>filmic、深 toe</td><td>Uncharted 2 及大量游戏</td></tr>
+<tr><td>ACES RRT/ODT 1.x</td><td>2014</td><td>AP1 逐通道 + 去饱和</td><td>色相偏移、蓝变紫</td><td>高对比电影感</td><td>UE 4.15+、Unity ACES、影视</td></tr>
+<tr><td>Narkowicz / Hill 拟合</td><td>2016</td><td>逐通道</td><td>同 ACES</td><td>同 ACES</td><td>大量引擎与 shader</td></tr>
+<tr><td>Lottes</td><td>2016</td><td>max-RGB + 串扰</td><td>可控趋白</td><td>参数化</td><td>AMD 示例、FidelityFX LPM 前身</td></tr>
+<tr><td>GT</td><td>2017</td><td>逐通道</td><td>偏移小（线性段长）</td><td>中性</td><td>Gran Turismo Sport</td></tr>
+<tr><td>Frostbite 显示映射</td><td>2017</td><td>ICtCp 亮度 + 0.6 混合</td><td>近保色相</td><td>无内置风格</td><td>Battlefield 1 等</td></tr>
+<tr><td>AgX</td><td>2022/2023</td><td>inset → sigmoid → outset</td><td>平滑趋白</td><td>柔和、低饱和</td><td>Blender 4.0 默认、Bevy、darktable</td></tr>
+<tr><td>Tony McMapface</td><td>2023</td><td>3D LUT</td><td>保色相 + 选择性去饱和</td><td>中性</td><td>Bevy 默认</td></tr>
+<tr><td>Khronos PBR Neutral</td><td>2024</td><td>max-RGB 保色比</td><td>保色相</td><td>色彩保真</td><td>three.js、Babylon、Filament、Blender</td></tr>
+<tr><td>ACES 2.0</td><td>2025</td><td>JMh 分别处理</td><td>保色相、彩度压缩</td><td>跨 100/1000/4000 nit 一致</td><td>OCIO 2.4、Resolve 20</td></tr>
+<tr><td>UE Local Exposure</td><td>2022</td><td>亮度（bilateral grid）</td><td>在全局曲线前</td><td>保细节</td><td>Unreal 5.0+</td></tr>
+</tbody></table></div>
+<h3>6.3 色相问题：逐通道、仅亮度与中间路线</h3>
+<ul>
+<li><strong>逐通道曲线</strong>：饱和色随亮度上升向六个基色次色塌缩（蓝→青或紫、红→黄），暗部增饱和、亮部去饱和；Hable 认为后者是电影胶片的"特性"。</li>
+<li><strong>仅亮度曲线</strong>：无色相偏移，但高光不趋白，色度溢出显示色域被裁剪（蓝通道最先裁）。</li>
+<li><strong>中间路线</strong>：Lottes 的串扰；NVIDIA 2016 在 ACES 上做亮度/逐通道混合；Frostbite 2017 在 ICtCp 的亮度/色度上做显示映射，再与逐通道结果按 0.6 混合，并把特效重做成按色温索引的黑体色带；Khronos Neutral 与 Tony 以保色相加受控趋白为设计核心；AgX 用 inset/outset 几何解决；ACES 2.0 干脆在色貌空间里把明度、彩度、色相分开处理。</li>
+<li><strong>局部色调映射</strong>：Reinhard 的 dodging-and-burning、Durand–Dorsey 2002 的双边滤波（log 亮度分 base/detail 只压 base）、Fattal 2002 的梯度域。游戏里直到 UE 5.0（2022）才有 Local Exposure：在 log 亮度上建 bilateral grid，参数 Highlight/Shadow Contrast（建议 0.6–1）、Blurred Luminance Blend（0.4–0.6）；Epic 建议 Lumen 场景一律开启。</li>
+</ul>
+<h3>6.4 调色（Color Grading）</h3>
+<ul>
+<li><strong>位置</strong>：ACES 术语里 LMT 在 scene-referred 线性空间、色调映射之前；ODT 之后的显示空间调色只用于 SDR LUT。UE 文档明确传统 LDR LUT"在 HDR 显示上不可靠"，Color Grading 面板的控件都在色调映射之前工作。</li>
+<li><strong>3D LUT</strong>：16³/32³/33³；Frostbite 用 33³、10 bit，以 PQ 作 LUT 的分布函数（比较过 log、S-Log、LogC）。Unity 的内部 LUT 用 Alexa LogC（cut 0.011361、a 5.555556、b 0.047996、c 0.244161、d 0.386036、e 5.301883、f 0.092819；LinearToLogC = c·log₁₀(a·x + b) + d）。</li>
+<li><strong>ASC CDL</strong>：out = (in·slope + offset)^power，再 sat：luma + sat·(out − luma)。</li>
+<li><strong>Lift/Gamma/Gain</strong>（Hable 2017）：lerp(shadows, highlights, pow(src, gamma))；他建议的顺序是曝光 → 色彩滤镜 → 饱和度 → log 对比（以 log₂0.18 为枢轴）→ filmic 曲线 → 显示伽马 → LGG。逐通道操作可烘成 1D 表，跨通道操作才需要 3D LUT。</li>
+<li><strong>白平衡</strong>：色温/色调两个滑块，本质是一次 CAT（第 3.3 节）。</li>
+<li><strong>工作色域</strong>：UE 5.1（2022-11）引入 Working Color Space：sRGB、Rec.2020、AP0、AP1、P3-DCI、P3-D65 或自定义；纹理按来源色域自动转换；UE 的 tonemapper 内部始终在 AP1。OpenColorIO 在 UE 4.26 起有插件，Unity、Godot 无原生支持。</li>
+</ul>
+<h3>6.5 HDR 显示格式</h3>
+<div class="tbl"><table><thead><tr><th>格式</th><th>年份</th><th>传递函数</th><th>位深</th><th>基色</th><th>元数据</th><th>峰值</th></tr></thead><tbody>
+<tr><td>HDR10</td><td>2015</td><td>PQ（ST 2084，2014）</td><td>10 bit</td><td>BT.2020</td><td>静态 ST 2086 + MaxCLL/MaxFALL</td><td>10000 nit（技术上限）</td></tr>
+<tr><td>HDR10+</td><td>2017</td><td>PQ</td><td>10 bit</td><td>BT.2020</td><td>动态 ST 2094-40</td><td>10000；HDR10+ Gaming 2022 年 CES 发布</td></tr>
+<tr><td>Dolby Vision</td><td>2014</td><td>PQ</td><td>10 bit（双层合成 12 bit）</td><td>BT.2020</td><td>动态 ST 2094-10</td><td>母版常 4000；Xbox Series 游戏 2021-09</td></tr>
+<tr><td>HLG</td><td>2015/2016</td><td>HLG</td><td>10 bit</td><td>BT.2020</td><td>无</td><td>相对；参考 1000 nit，系统伽马 1.2</td></tr>
+</tbody></table></div>
+<p>VESA DisplayHDR 认证（CTS 1.1，2019；1.2 于 2024-05 加严）：</p>
+<div class="tbl"><table><thead><tr><th>指标</th><th>400</th><th>600</th><th>1000</th><th>1400</th><th>True Black 400</th><th>True Black 600</th></tr></thead><tbody>
+<tr><td>10% 块峰值 cd/m²</td><td>400</td><td>600</td><td>1000</td><td>1400</td><td>400</td><td>600</td></tr>
+<tr><td>全屏持续</td><td>320</td><td>350</td><td>600</td><td>900</td><td>250</td><td>350</td></tr>
+<tr><td>最大黑电平</td><td>0.4</td><td>0.1</td><td>0.05</td><td>0.02</td><td>0.0005</td><td>0.0005</td></tr>
+<tr><td>DCI-P3 覆盖</td><td>—</td><td>90%</td><td>90%</td><td>95%</td><td>90%</td><td>90%</td></tr>
+<tr><td>面板位深</td><td>8</td><td>8 + 2 FRC</td><td>8 + 2</td><td>8 + 2</td><td>8 + 2</td><td>8 + 2</td></tr>
+</tbody></table></div>
+<p>OLED 峰值高但有 ABL（自动亮度限制），全屏持续只有 250–350 nit；LCD 全屏持续可到 600–900 nit。CTS 1.2 把测试块缩到 8% 并强制局部调光、提高静态对比度要求（1000 档 30000:1）。</p>
+<h3>6.6 游戏 HDR 输出管线</h3>
+<pre>scene-linear (FP16, 预曝光) → 调色 (scene-referred) → 显示映射 (paper white, 峰值, 最小亮度)
+  → 色域变换 (Rec.709 → BT.2020 矩阵)  → PQ 编码 → RGB10A2 + HDR10 元数据
+  或 → scRGB FP16 (sRGB 基色, 线性, 1.0 = 80 nit) 交给系统合成器</pre>
+<ul>
+<li><strong>PQ 公式</strong>（ST 2084）：E′ = ((c₁ + c₂Y^m₁)/(1 + c₃Y^m₁))^m₂，Y = L/10000；m₁ = 2610/16384 = 0.1593017578125，m₂ = 2523/32 = 78.84375，c₁ = 3424/4096 = 0.8359375，c₂ = 2413/128 = 18.8515625，c₃ = 2392/128 = 18.6875。80 nit 对应 10 bit 码值 497，100 nit 约 0.508。</li>
+<li><strong>HLG OETF</strong>（BT.2100）：E′ = √(3E)（E ≤ 1/12），否则 a·ln(12E − b) + c，a = 0.17883277、b = 0.28466892、c = 0.55991073；OOTF 的系统伽马 1.2 对应 1000 nit。</li>
+<li><strong>Windows</strong>：scRGB 交换链 <code>R16G16B16A16_FLOAT</code> + <code>DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709</code>，(12.5, 12.5, 12.5) = 1000 nit，负值表示超出 709 的 2020 色；或 <code>R10G10B10A2_UNORM</code> + <code>G2084_NONE_P2020</code>。桌面 SDR 参考白用户可调，常见约 200 nit，游戏应读 <code>DISPLAYCONFIG_SDR_WHITE_LEVEL</code>。时间线：Win10 1703（2017-04）HDR；Auto HDR 2021；自动色彩管理 ACM 2023 向全部 SDR 显示开放；NVIDIA RTX HDR 2024-02。</li>
+<li><strong>macOS/iOS EDR</strong>：<code>CAMetalLayer</code> 开 <code>wantsExtendedDynamicRangeContent</code>，FP16 加 extended linear sRGB/P3；1.0 = SDR 参考白，headroom = 峰值白/SDR 白（XDR 显示约 16，随参考白设定变化），超出 headroom 裁剪。</li>
+<li><strong>Android</strong>：13 HDR 视频，14 Ultra HDR（SDR 主图 + gain map），15 的 <code>setDesiredHdrHeadroom</code> 与 <code>getHdrSdrRatio()</code>；Google 2025 年建议混合 UI 用约 2× headroom，全 HDR 内容 5–8×，不要把 SDR 提亮去追 HDR。</li>
+<li><strong>Paper white 与 UI</strong>：Unity HDRP 默认 300 nit（0–400）、maxNits 1000、minNits 0.005，范围压缩默认 BT.2390 EETF；UE <code>r.HDR.UI.Level</code> 建议 1.5–2，OutputDevice 3/4 为 ACES 1000/2000 nit ST2084，5/6 为 scRGB。</li>
+<li><strong>NVIDIA 2016 建议</strong>：ACES 派生 tonemapper + FP16 scRGB；SDR ACES 把中灰置于 8 nit，HDR 置于 10 nit；1000 nit 曲线输入峰值取中灰上 10 档（0.18 × 2¹⁰ = 184）；用 Reinhard 直接铺满 1000 nit 会把中灰推到 150 nit 以上。</li>
+<li><strong>HGIG</strong>（2018/2019，Microsoft + SIE）：显示上报 MaxFFTML（全屏可保留细节的最大亮度）、MaxTML、MinTML，游戏据此调 tonemapper，电视不再二次映射；类别默认 MaxTML 600/1000/4000/10000，MaxFFTML 一律 600 nit，未知显示默认 600/1000/0.1。</li>
+<li><strong>AMD FreeSync Premium Pro</strong>（2017）：显示器通过 AGS 把原生亮度范围与色度交给游戏，游戏直接映射到原生范围；GPUOpen 建议上限取关闭局部调光时可持续的峰值。</li>
+<li><strong>里程碑</strong>：Xbox One S（2016-08）与 PS4 固件 4.00（2016-09）HDR10；Gears of War 4、Battlefield 1（2016-10）首批 HDR 游戏；UE 4.15（2017-02）实验性 HDR 输出；Mass Effect Andromeda（2017-03）是最早一批 HDR PC 游戏但不是第一个（Hitman、RE7 更早）；Call of Duty: WWII（2017-11）的 HDR 实现由 Paul Malin 公开；Frostbite 的 HDR 调色与显示（Alex Fry，GDC 2017 而非 SIGGRAPH）。</li>
+</ul>
+<h3>6.7 色域映射</h3>
+<ul>
+<li><strong>问题</strong>：在 Rec.2020/AP1 中渲染再输出到 sRGB/P3，矩阵变换后出现负值或 &gt; 1 的分量；硬裁剪同时去饱和和偏色，最典型是饱和蓝在逐通道曲线或裁剪后 R、G 被抬升变成紫。ACES 1.1（2018）为此发过 Blue Light Artifact Fix LMT，1.3 的 RGC 取代了它。</li>
+<li><strong>AP1 工作空间的价值</strong>：AP1 包含 Rec.709、P3 和几乎全部 Rec.2020，素材进入 AP1 后极少出现负值，曲线在大色域里运算后再做一次统一的输出映射。</li>
+<li><strong>ACES 1.3 Reference Gamut Compression（2021）</strong>：在 AP1 中 A = max(R, G, B)，d = (A − RGB)/|A|；d &lt; t 不变，否则按 powerP 曲线压缩；limit = [1.147, 1.264, 1.312]（青、品、黄方向），threshold = [0.815, 0.803, 0.880]，power = 1.2。</li>
+<li><strong>CSS Color 4</strong>：Oklch 中固定 L、h，对 C 二分到裁剪后 ΔE_OK &lt; 0.02。</li>
+<li><strong>ACES 2.0（2025）</strong>：在 JMh 中沿恒定色相切片压缩，目标色域的"cusp"（基色/次色连线与边界交点）按色相查 1D LUT，reach 色域为 AP1，压缩曲线仍是 RGC 的 powerP；目标是 100/1000/4000 nit 显示之间的一致性。</li>
+</ul>
+</section>
+<section id="s7">
+<h2><span class="num">07</span>材质与光源</h2>
+<h3>7.1 反照率：线性反射率的物理范围</h3>
+<p>PBR 里的基色（base color / albedo）是线性反射率，取值 [0, 1]，纹理按 sRGB 存、采样时解码。真实物体的范围很窄：</p>
+<div class="tbl"><table><thead><tr><th>来源</th><th>非金属基色</th><th>金属</th><th>其他规则</th></tr></thead><tbody>
+<tr><td>Unreal 实测表（线性）</td><td>木炭 0.02、新沥青 0.02、旧沥青 0.08、裸土 0.13、草地 0.21、沙漠沙 0.36、新混凝土 0.51、海冰 0.56、新雪 0.81</td><td>金属度按二值处理</td><td>Specular 默认 0.5 = 4% F0；漫反射材质不要把 Specular 设 0</td></tr>
+<tr><td>Filament</td><td>sRGB 50–240（严格）/ 30–240（宽松）；未知材料用 127 sRGB = 0.5 线性；不低于 90 sRGB 的"微遮蔽"底线</td><td>亮度 67–100%（170–255 sRGB），脏污氧化金属更暗</td><td>反射率参数 f0 = 0.16·reflectance²，0.5 → 4%</td></tr>
+<tr><td>Substance PBR Guide</td><td>不低于 30/50 sRGB，不高于 240 sRGB；"基色不含光照信息，微遮蔽除外"</td><td>原金属反射率 70–100% → 180–255 sRGB；金属度图只画 0 或 1</td><td>金属度 &lt; 235 sRGB 意味着灰尘、氧化或油漆</td></tr>
+<tr><td>Dontnod 图表（Lagarde 2014）</td><td>50–243 sRGB</td><td>反射率 186–255 sRGB</td><td>UE4 的 Specular 0–1 映射到 F0 0–0.08</td></tr>
+<tr><td>physicallybased.info（线性）</td><td>雪 (0.85, 0.85, 0.85)、木炭 (0.02, 0.02, 0.02)、草 (0.105, 0.133, 0.041)</td><td>—</td><td>皮肤 I–VI：(0.847, 0.638, 0.552) 到 (0.09, 0.05, 0.02)，IOR 1.4</td></tr>
+</tbody></table></div>
+<p>"没有纯黑没有纯白"规则的依据：最暗的真实表面约 0.02，最亮的新雪约 0.81–0.85。</p>
+<h3>7.2 F0：介质的无色与金属的有色</h3>
+<p>Schlick 近似 F = F0 + (1 − F0)(1 − cosθ)⁵；介质的 F0 由折射率决定，F0 = ((n − 1)/(n + 1))²，几乎无色且集中在 2–5%；金属的 F0 有色且高，是"金属颜色"的全部来源（金属没有漫反射）。</p>
+<div class="tbl"><table><thead><tr><th>介质</th><th>IOR</th><th>F0</th><th>金属</th><th>F0（线性，Lagarde 2011 光谱积分，D65）</th><th>F0（sRGB，Filament）</th></tr></thead><tbody>
+<tr><td>水</td><td>1.33</td><td>0.020</td><td>铁</td><td>0.560, 0.570, 0.580</td><td>0.77, 0.78, 0.78</td></tr>
+<tr><td>眼睛</td><td>1.38</td><td>0.025</td><td>铜</td><td>0.955, 0.637, 0.538</td><td>0.97, 0.74, 0.62</td></tr>
+<tr><td>皮肤</td><td>1.40</td><td>0.028</td><td>金</td><td>1.000, 0.766, 0.336</td><td>1.00, 0.85, 0.57</td></tr>
+<tr><td>塑料/玻璃</td><td>1.5</td><td>0.040（默认）</td><td>铝</td><td>0.913, 0.921, 0.925</td><td>0.91, 0.92, 0.92</td></tr>
+<tr><td>头发</td><td>1.55</td><td>0.046</td><td>银</td><td>0.972, 0.960, 0.915</td><td>0.97, 0.96, 0.91</td></tr>
+<tr><td>牙齿</td><td>1.63</td><td>0.058</td><td>铬</td><td>0.550, 0.556, 0.554</td><td>—</td></tr>
+<tr><td>红宝石</td><td>1.76</td><td>0.077</td><td>镍</td><td>0.660, 0.609, 0.526</td><td>—</td></tr>
+<tr><td>钻石</td><td>2.42</td><td>0.172</td><td>钛</td><td>0.542, 0.497, 0.449</td><td>0.76, 0.73, 0.69</td></tr>
+<tr><td></td><td></td><td></td><td>铂</td><td>0.672, 0.637, 0.585</td><td>0.83, 0.81, 0.78</td></tr>
+</tbody></table></div>
+<p>Lagarde 的金属值是这样来的：按波长用复折射率 n + ik 算 Fresnel，用 CIE 配色函数在 D65 下加权，再转到线性 sRGB。所以 RGB 的 F0 是特定光源下的光谱平均，换光源或换工作空间（ACEScg）数值都会变。glTF 2.0 固定非金属 F0 = 0.04（IOR 1.5），金属用 baseColor 作 F0，材质 = mix(dielectric, metal, metallic)。Hoffman 2013：除金属、宝石、晶体外，F0 集中在 2–5%，20–40% 的"无人区"只有半导体。</p>
+<p><strong>边缘色调</strong>：Schlick 在掠射角一律趋白；Gulbrandsen 2014 的"艺术家友好金属 Fresnel"用反射率 r 与边缘色 g 两组 RGB 参数反推 n、k（Autodesk Standard Surface 采用）；OpenPBR 用 F82-tint 模型（Kutz 2021）让 specular_color 控制边缘反射。</p>
+<p><strong>能量补偿</strong>：单次散射 GGX 在粗糙度 1 时损失近 50% 能量（Kulla–Conty 2017），补偿项 f_ms 加回后粗糙金属"饱和度略增"；Filament 实现为 f_r·(1 + f0·(1/DFG.y − 1))。这意味着粗糙金属的颜色不只是 F0，还与粗糙度耦合。</p>
+<h3>7.3 漫反射、次表面与透射</h3>
+<ul>
+<li><strong>漫反射模型</strong>：Lambert σ/π；Disney/Burley 2012 的逆向反射项（F_D90 = 0.5 + 2·roughness·cos²θd，光滑表面掠射减半、粗糙表面最多 2.5 倍），Frostbite 做了重归一化；OpenPBR 采用能量守恒的 Oren–Nayar（EON，2024）。Disney 的 11 个参数：baseColor、subsurface、metallic、specular、specularTint、roughness、anisotropic、sheen、sheenTint、clearcoat、clearcoatGloss；清漆固定 IOR 1.5、无色。</li>
+<li><strong>皮肤</strong>：Jimenez 2015 可分离 SSS 的默认 strength = (0.48, 0.41, 0.28)、falloff = (1.0, 0.37, 0.3)，红通道散射距离最远，这就是皮肤"红透"的来源；UE 的 Subsurface Profile 用同一组默认值；源码头文件警告"在非线性空间里做 SSS 会彻底毁掉它"。Christensen–Burley 2015 的扩散近似 s = 1.85 − A + 7|0.8 − A|³。OpenPBR 的 subsurface_radius_scale 默认 (1.0, 0.5, 0.25)。</li>
+<li><strong>吸收</strong>：Beer–Lambert，glTF KHR_materials_volume 用 attenuationColor 与 attenuationDistance，T(x) = c^(x/d)。</li>
+<li><strong>薄膜干涉</strong>：glTF KHR_materials_iridescence（2022），默认 IOR 1.3、厚度 100–400 nm，基于 Belcour–Barla 2017，在 Fourier 域对 Airy 求和做光谱抗锯齿再投到 Rec.709，因为"实时渲染器只有三个分量"。</li>
+<li><strong>色散</strong>：glTF KHR_materials_dispersion（2024），dispersion = 20/V_d；Abbe 数：金红石 9.8、聚碳酸酯 32、钻石 55、水 55、冕牌玻璃 59。这是 RGB 渲染里最常见的"伪光谱"：按三个波长各算一次折射率。</li>
+<li><strong>材质标准</strong>：Autodesk Standard Surface（2019）、OpenPBR Surface（Autodesk + Adobe，ASWF 托管，v1.1.2 2026-10），都以 MaterialX 节点图发布。</li>
+</ul>
+<h3>7.4 光源颜色：色温、普朗克轨迹与 D 光源</h3>
+<p>引擎让美术输入色温（K），内部把它转成色度再转 RGB。Kang 等 2002 的普朗克轨迹拟合（1667–25000 K）是常用公式，Filament 用 Krystek 近似。按拟合计算并归一化到最大通道 = 1 的线性 sRGB：</p>
+<div class="tbl"><table><thead><tr><th>色温 K</th><th>x</th><th>y</th><th>线性 sRGB</th><th>典型光源</th></tr></thead><tbody>
+<tr><td>1850</td><td>0.5438</td><td>0.4097</td><td>1.000, 0.220, 0.000</td><td>蜡烛</td></tr>
+<tr><td>2700</td><td>0.4593</td><td>0.4107</td><td>1.000, 0.417, 0.100</td><td>家用白炽灯</td></tr>
+<tr><td>2856</td><td>0.4471</td><td>0.4075</td><td>1.000, 0.450, 0.127</td><td>CIE 光源 A</td></tr>
+<tr><td>3200</td><td>0.4232</td><td>0.3991</td><td>1.000, 0.517, 0.194</td><td>影视钨丝灯</td></tr>
+<tr><td>4000</td><td>0.3805</td><td>0.3767</td><td>1.000, 0.653, 0.377</td><td>荧光灯（引擎示例）</td></tr>
+<tr><td>5000</td><td>0.3450</td><td>0.3516</td><td>1.000, 0.793, 0.629</td><td>正午直射阳光</td></tr>
+<tr><td>5500</td><td>0.3323</td><td>0.3410</td><td>1.000, 0.850, 0.755</td><td>日光（太阳 + 天空）</td></tr>
+<tr><td>5778</td><td>0.3263</td><td>0.3357</td><td>1.000, 0.878, 0.823</td><td>太阳有效温度</td></tr>
+<tr><td>6500</td><td>0.3135</td><td>0.3237</td><td>1.000, 0.944, 0.993</td><td>阴天；"显示器白点"</td></tr>
+<tr><td>8000</td><td>0.2952</td><td>0.3048</td><td>0.766, 0.802, 1.000</td><td>阴影处</td></tr>
+<tr><td>10000</td><td>0.2807</td><td>0.2883</td><td>0.610, 0.695, 1.000</td><td>蓝天</td></tr>
+</tbody></table></div>
+<p>两个常被忽略的事实：</p>
+<ul>
+<li><strong>D 光源不在普朗克轨迹上</strong>。D65 = (0.3127, 0.3290)，普朗克 6504 K = (0.3134, 0.3236)，y 差 0.005（日光略偏绿）。引擎里"6500 K 黑体"不等于 sRGB 白，上表 6500 K 的 (1.000, 0.944, 0.993) 与 D65 的 (1, 1, 1) 不同。Frostbite 和 Filament 的做法是只从色温取色相、白点固定 D65。</li>
+<li><strong>RGB 引擎只保留光源的色度</strong>。荧光灯、LED 的光谱有尖峰，显色指数 CRI/TM-30 低，照到物体上颜色与黑体光不同；只有光谱渲染器能表现这一点。</li>
+</ul>
+<p>Frostbite 的色温表：蜡烛 1850–1930 K、日出日落 2000–3000 K、家用钨丝 2500–2900 K、正午太阳 5000–5400 K、日光 5500–6500 K、阴天 6000–7500 K、阴影 7000–8000 K、多云蓝天 8000–10000 K。正午约 100000 lx、5000–5500 K，日落时降到 2000–3000 K。</p>
+<h3>7.5 天空颜色与大气模型</h3>
+<p>天空的蓝来自 Rayleigh 散射的 λ⁻⁴ 依赖（400 nm 比 700 nm 强 16 倍）；日落的红来自长光程后蓝光被散射殆尽；臭氧吸收让日落时天顶仍然偏蓝（Hillaire 2020 引 Kutz 2013）。实时引擎用的系数（Bruneton 2008/2017、Hillaire 2020，单位 10⁻⁶ m⁻¹，三个波长 680/550/440 nm）：</p>
+<div class="tbl"><table><thead><tr><th>成分</th><th>散射/吸收系数 (R, G, B)</th><th>标高</th><th>备注</th></tr></thead><tbody>
+<tr><td>Rayleigh 散射</td><td>5.802, 13.558, 33.1</td><td>8 km</td><td>β = 1.24062 × 10⁻⁶ · λ⁻⁴（λ 单位 µm）</td></tr>
+<tr><td>Mie 散射</td><td>3.996（吸收 4.40）</td><td>1.2 km</td><td>Ångström β = 5.328 × 10⁻³，相函数 g = 0.8</td></tr>
+<tr><td>臭氧吸收</td><td>0.650, 1.881, 0.085</td><td>25 km 处 ±15 km 帐篷分布</td><td>300 DU</td></tr>
+</tbody></table></div>
+<p>地球半径 6360 km、大气顶 6420–6460 km、地面反照率 0.1。模型谱系：Preetham 1999（Perez 五参数解析，浊度 2–6，日落失效）→ Bruneton–Neyret 2008（预计算多次散射，2017 版用 360–830 nm 48 个波段再转 RGB）→ Hosek–Wilkie 2012（400–720 nm 九个可见通道逐通道拟合，有 XYZ 版本，2013 加太阳盘与边缘变暗）→ Hillaire 2016（Frostbite，Xbox One 0.42 ms）→ Hillaire 2020（UE 4.24 的 Sky Atmosphere；透射 LUT 256×64、天空视图 192×108 R11G11B10F、多次散射 32²，GTX 1080 上 0.31 ms；明确"面向 RGB 渲染"）。</p>
+<h3>7.6 基于图像的光照</h3>
+<ul>
+<li><strong>HDRI</strong>：Debevec–Malik 1997 的包围曝光合成；Radiance .hdr 的 RGBE（Ward 1991，8 bit 尾数 + 共享 8 bit 指数）与 OpenEXR（ILM 2003，half 浮点，每档 1024 步）；HDRI 必须存 scene-linear。Lagarde 等 2016（Unity）给出 HDRI 拍摄与绝对亮度标定的工作流。</li>
+<li><strong>Split-sum</strong>（Karis 2013）：∑L·f·cos/p ≈ (∑L)(∑f·cos/p)，前者是按粗糙度预滤波的 mip 链（假设 n = v = r，误差主要来源），后者是 2D 环境 BRDF 查找表：<code>Prefiltered × (F0 × EnvBRDF.x + EnvBRDF.y)</code>。</li>
+<li><strong>球谐</strong>：Ramamoorthi–Hanrahan 2001 的 9 系数（3 阶）辐照度，平均误差约 1%、上限 3%，E(n) = nᵀMn，常数 c1 = 0.429043、c2 = 0.511664、c3 = 0.743125、c4 = 0.886227、c5 = 0.247708。截断强太阳会出现负瓣，负值意味着色相反转，常规修法是加窗（Sloan 2008）。</li>
+<li>天空光在 UE、Unity 里以 cd/m² 计；Godot 的 ambient_light_sky_contribution 在天空与平色之间混合。</li>
+</ul>
+<h3>7.7 光谱渲染与 RGB 渲染的差距</h3>
+<p>真实过程是 ∫ρ(λ)E(λ)c̄(λ)dλ，RGB 渲染把 ρ 与 E 先投影成三元组再逐分量相乘，相乘与积分不可交换。pbrt-v4 的例子：sRGB 纯绿 (0, 1, 0) 自乘不变，同一颜色在 ACES2065-1 里是 (0.38, 0.82, 0.12)，平方后约 (0.14, 0.67, 0.01)，亮度下降且跑出可实现色，说明 RGB 乘积依赖工作空间原色。Ward 2002 测得：在主光源下预滤波反射率可把朴素 RGB 的 ΔE 误差降到 1/6；Meng 2015 证明要复现很多 RGB 颜色，反射光谱必须违反能量守恒。</p>
+<p><strong>光谱上采样</strong>：Smits 1999（7 个基光谱）→ Meng 2015 → Otsu 2018（PCA 聚类）→ Jakob–Hanika 2019（sigmoid(c₀λ² + c₁λ + c₂)，三系数，整个 sRGB 色域零误差，Mitsuba 3 与 pbrt-v4 采用，后者按 sRGB/P3/Rec.2020/ACES 各备 64³ 系数表）→ Mallett–Yuksel 2019（三条对应 BT.709 原色的基光谱，D65 下精确）。</p>
+<p><strong>哪些渲染器是光谱的</strong>：Manuka（Weta，2018 TOG，hero wavelength 采样，每路径 8 个波长，刻意不做荧光）、Mitsuba 3（spectral 变体，360–830 nm，每光线 4 波长；polarized 变体用 Stokes 向量，成本 1.5–2×）、pbrt-v4（默认每光线 4 个波长采样）、Maxwell、Octane（宣传光谱，完整光谱内核多次推迟，现状未核实）。Arnold（Arnold 7 起默认 ACEScg）、Cycles、Hydra Storm、V-Ray 是 RGB。需要光谱的场景：色散、荧光、薄膜与结构色、同色异谱光源下的材质、多次反弹后的饱和度、相机/观察者 CMF 模拟。</p>
+</section>
+<section id="s8">
+<h2><span class="num">08</span>引擎管线</h2>
+<p>所有现代管线都是同一个形状：scene-linear 工作空间 → 曝光 → 调色（log 或线性）→ 视图/显示变换（OCIO 术语的 display/view，游戏里叫 tonemapper）→ 显示编码（sRGB、PQ、HLG）。差别在工作空间色域、tonemapper 选择与 HDR 输出路径。</p>
+<div class="tbl"><table><thead><tr><th>引擎</th><th>工作空间</th><th>色调映射</th><th>HDR 输出</th><th>关键版本</th></tr></thead><tbody>
+<tr><td>Unreal Engine</td><td>线性 FP16，预曝光；Working Color Space 可选 sRGB/Rec.2020/AP0/AP1/P3（UE 5.1，2022）</td><td>ACES 基础的 Filmic 默认（4.15，2017-02）；Slope 0.88 / Toe 0.55 / Shoulder 0.26 / White Clip 0.04；Blue Correction、Expand Gamut；LUT 仅 LDR</td><td>OutputDevice 0–6：sRGB、Rec.709、显式伽马、ACES 1000/2000 nit ST2084、ACES 1000/2000 nit scRGB；ColorGamut Rec.709/P3/Rec.2020/ACES/ACEScg</td><td>OCIO 插件（4.26 文档已有）；Local Exposure 5.0；4.19 物理光单位</td></tr>
+<tr><td>Unity Built-in / PPv2</td><td>Gamma 或 Linear 项目设置</td><td>PPv2：LDR 条带 LUT / HDR 3D LUT（Alexa LogC）/ External；None、Neutral、ACES、Custom</td><td>无</td><td>5.5 移动端 Linear 需 ES3/Metal</td></tr>
+<tr><td>Unity HDRP</td><td>线性，物理光单位，EV100 曝光，物理相机</td><td>None、Neutral（Hable 变体）、ACES（可选完整 ACES 而非拟合）、Custom、External</td><td>HDRP 13.0（Unity 2022.1，不是 2022.2）：RGB10A2 + Rec.2020 + PQ；paper white 默认 300 nit，BT.2390 EETF，Hue Shift</td><td>2018 发布</td></tr>
+<tr><td>Unity URP（Unity 6）</td><td>线性；Grading Mode LDR/HDR，LUT 32</td><td>None、Neutral、ACES</td><td>Neutral/ACES 预设</td><td>—</td></tr>
+<tr><td>Godot 4</td><td>3D 线性 HDR；2D 默认 sRGB，可开 hdr_2d</td><td>Linear（默认）、Reinhard、Filmic、ACES Fitted、AgX（4.4，2025-03）</td><td>Filmic/ACES 不支持 HDR 输出；AgX 的 HDR 输出 2025-12 加入</td><td>Compatibility 渲染器无 HDR、在 sRGB 混合</td></tr>
+<tr><td>Frostbite</td><td>线性，光度单位，着色器内预曝光，FP16</td><td>2014 filmic ACES-like；2017 改为"显示映射"：ICtCp 中仅亮度肩部 + 渐进去饱和，无 toe、无对比改变、无内置胶片感</td><td>PQ/Rec.2020；一次调色多路输出</td><td>Fry GDC 2017；部分旧特效依赖逐通道色相偏移而重做</td></tr>
+<tr><td>Call of Duty</td><td>线性</td><td>Jimenez 2014 是后处理（bloom 等），不是 HDR；HDR 显示管线是 Malin 的"HDR in Call of Duty"（WWII，2018）</td><td>HDR10</td><td>—</td></tr>
+<tr><td>Filament</td><td>线性，预曝光；管线：场景亮度 → 归一化 → 白平衡 → 调色 → 色调映射 → OETF</td><td>Linear、ACES（100 nit 昏暗环绕）、ACESLegacy、Filmic（不再推荐）、PBRNeutral、GT7（paper white 250 nit）、AgX（NONE/PUNCHY/GOLDEN）、Generic（contrast 1.55、midGrayIn 0.18、midGrayOut 0.215、hdrMax 10）</td><td>—</td><td>文档是颜色管线最详细的开源引擎</td></tr>
+<tr><td>Blender</td><td>场景线性 Rec.709（OCIO）；显示设备 sRGB/Display P3/Rec.1886/Rec.2020</td><td>Standard、Filmic（2.79，2017-05，Sobotka；已弃用）、AgX（4.0 默认，2023-11，16.5 档）、Khronos PBR Neutral（4.x）、Filmic Log、AgX Log、False Color、Raw</td><td>macOS HDR 视口</td><td>白平衡 4.3</td></tr>
+<tr><td>three.js</td><td>linear-sRGB 工作空间；r152（2023-04）起 ColorManagement 默认开、outputColorSpace = sRGB</td><td>None、Linear、Reinhard、Cineon、ACESFilmic、AgX（r160）、Neutral（Khronos，r162）、Custom</td><td>—</td><td>颜色纹理需设 colorSpace = SRGBColorSpace</td></tr>
+<tr><td>Babylon.js</td><td>线性 PBR</td><td>Standard（Hable 式）、ACES、Khronos PBR Neutral（发布即采用）；.3dl LUT</td><td>—</td><td>—</td></tr>
+<tr><td>Bevy</td><td>线性 HDR，去条带抖动</td><td>0.10（2023-03）加入 Reinhard、ReinhardLuminance、AcesFitted、AgX、TonyMcMapface、BlenderFilmic 等；0.11（2023-07）起 TonyMcMapface 默认</td><td>—</td><td>—</td></tr>
+<tr><td>Arnold</td><td>Arnold 7（2021-10）默认 OCIO，渲染空间 ACEScg</td><td>OCIO 视图（ACES 1.x SDR-video）</td><td>—</td><td>RGB 渲染器</td></tr>
+<tr><td>RenderMan</td><td>RenderMan 24（2021）内置 OCIO 配置含 ACES 1.2；光源色温纳入色彩管理</td><td>OCIO 视图</td><td>—</td><td>—</td></tr>
+<tr><td>OpenColorIO</td><td>Sony Imageworks 2003 起内部开发，ASWF 治理；角色（scene_linear、color_picking、compositing_log）抽象色彩空间；v2.5 内置 ACES 2.0 配置并支持 Vulkan GPU 路径</td><td>—</td><td>—</td><td>Blender 2.64+、Maya 2016+、Nuke、UE 4.22+</td></tr>
+<tr><td>OpenEXR</td><td>ILM 1999 创建、2003 开源；half/float/uint32；存线性值；<code>chromaticities</code> 不可靠，用 <code>colorInteropID</code></td><td>—</td><td>—</td><td>PIZ/ZIP/DWA 压缩</td></tr>
+</tbody></table></div>
+<p>Khronos PBR Neutral（2024-05-16）发布当天即被 Filament、Babylon.js、model-viewer、three.js 采用，Blender 随后跟进，是"产品可视化要色彩保真"这一需求首次有了跨引擎的统一答案。</p>
+</section>
+<section id="s9">
+<h2><span class="num">09</span>汇合与判断</h2>
+<h3>9.1 贯穿全文的几条主线</h3>
+<ol>
+<li><strong>颜色是感知量，光是物理量，渲染在两者之间来回。</strong> 光照计算只能在物理量（线性辐射量）上做；存储、传输、显示和"看起来差多少"的判断要在感知量（伽马/PQ 编码、Lab/Oklab/JMh）上做。几乎所有颜色错误都是把这两类操作放错了空间。</li>
+<li><strong>三刺激既是便利也是债务。</strong> RGB 渲染靠同色异谱才成立，代价是反射率 × 光源在 RGB 下不精确、金属 F0 依赖光源与工作空间、荧光灯显色无法表现。工作空间越宽（AP1）误差越小、负值越少，但不会消失；需要精确的地方只能上光谱。</li>
+<li><strong>位深的瓶颈在暗部。</strong> 韦伯分数 1–2% 决定线性 8 bit 不可用、FP16 够用、10 bit PQ 勉强够、12 bit PQ 全程够；抖动是最便宜的补救，而且必须在被量化的那个空间加。</li>
+<li><strong>色调映射的历史是从"一条曲线"走向"分别处理明度、彩度、色相"。</strong> 2010 年的 Hable 与 2014 年的 ACES 都是逐通道 S 曲线，附带色相偏移与六色塌缩；2017 年 Frostbite 转到 ICtCp，2022 年 AgX 用 inset/outset，2023 年 Tony 用 LUT，2024 年 Khronos Neutral 用 max-RGB 保色比，2025 年 ACES 2.0 直接在色貌模型的 JMh 里工作。</li>
+<li><strong>HDR 显示没有改变渲染，改变的是输出端。</strong> 场景内部早已是 scene-linear 的 HDR；HDR 输出只是把色调映射的目标从 80–300 nit 换成 1000 nit 以上、把 sRGB 编码换成 PQ、把 Rec.709 换成 Rec.2020，再加上 paper white、headroom 与元数据这些以前不存在的参数。</li>
+<li><strong>色温不等于白点，6500 K 黑体不等于 D65。</strong> 引擎从色温取色相、白点固定 D65 是正确做法。</li>
+</ol>
+<h3>9.2 实践清单</h3>
+<div class="tbl"><table><thead><tr><th>场景</th><th>做法</th><th>依据</th></tr></thead><tbody>
+<tr><td>纹理导入</td><td>基色、自发光标 sRGB；法线、粗糙度、金属度、AO、高度、遮罩标线性；alpha 永远线性</td><td>glTF 2.0、KTX 2.0、DXGI、EXT_texture_sRGB</td></tr>
+<tr><td>反照率取值</td><td>非金属 sRGB 30/50–240（线性 0.02–0.8）；金属基色即 F0，亮度 170–255 sRGB；金属度画 0 或 1</td><td>Filament、Substance、UE 实测表</td></tr>
+<tr><td>混合与滤波</td><td>在线性空间做，用 sRGB 帧缓冲让硬件在混合后编码；UI 用预乘 alpha</td><td>EXT_framebuffer_sRGB、Porter–Duff、McDonald 2013</td></tr>
+<tr><td>文字</td><td>线性混合会显细，按平台习惯折中（ClearType 伽马 1.9、Photoshop 文字 1.45、FreeType stem darkening）</td><td>FreeType 文档、WPF 注册表</td></tr>
+<tr><td>scene-linear 缓冲</td><td>FP16 为主，带宽紧张时 R11G11B10（接受蓝通道轻微偏色）；配合上一帧曝光预乘</td><td>Frostbite 2014、UE 4.19</td></tr>
+<tr><td>曝光</td><td>直方图法取 40–95 百分位，暗→亮快、亮→暗慢，中灰 12.5–18%；一定在色调映射之前</td><td>Frostbite、UE、HDRP 默认值</td></tr>
+<tr><td>色调映射（风格化）</td><td>UE Filmic / ACES 1.x 拟合，但给饱和蓝加 Blue Correction</td><td>UE 文档</td></tr>
+<tr><td>色调映射（保真）</td><td>Khronos PBR Neutral（产品）、AgX（柔和）、Tony McMapface（中性）、ACES 2.0（跨显示一致）</td><td>各规范与仓库</td></tr>
+<tr><td>HDR 输出</td><td>Windows 用 scRGB FP16 或 RGB10A2 + PQ，读 SDR 白电平；Apple 用 EDR FP16 读 headroom；Android 15 用 setDesiredHdrHeadroom；paper white 200–300 nit，峰值按 HGIG 的 MaxTML/MaxFFTML</td><td>Microsoft、Apple、Google 文档，HGIG v1.1</td></tr>
+<tr><td>宽色域渲染</td><td>工作空间用 AP1 或 Rec.2020，输出前做色域压缩（RGC 或 Oklch 二分），不要硬裁剪</td><td>ACES 1.3 RGC、CSS Color 4</td></tr>
+<tr><td>渐变与 UI 颜色</td><td>在 Oklab/Oklch 插值；色差用 ΔE_OK 或 ΔE2000；画质比较用 ꟻLIP</td><td>CSS Color 4、NVIDIA ꟻLIP</td></tr>
+<tr><td>输出量化</td><td>三角分布噪声 + 蓝噪声整形，在目标编码空间加，每帧换图案</td><td>Gjøl 2016</td></tr>
+<tr><td>光源</td><td>用物理单位（lx、lm、cd、nit），色温只取色相，白点 D65，天空用大气模型系数而非手调 RGB</td><td>Frostbite、Filament、Hillaire 2020</td></tr>
+<tr><td>需要光谱的场合</td><td>色散、薄膜、荧光、低 CRI 光源下的材质：离线用 Mitsuba 3 / pbrt-v4 / Manuka；实时用 Belcour–Barla 薄膜与 KHR_materials_dispersion 这类三波长近似</td><td>各文献</td></tr>
+</tbody></table></div>
+<h3>9.3 核实中纠正的常见说法</h3>
+<ul>
+<li>"UE3 是伽马空间光照"：UDK 文档显示 UE3 已用 sRGB 纹理与线性光照。</li>
+<li>"Unity 3.0 引入线性光照"：能找到的最早文档是 3.5.1，3.0 无法确认。</li>
+<li>"Half-Life 2 已是 gamma-correct"：未能证实；可证实的是 Valve 在 GDC 2008 描述了 DX9/DX10 硬件混合空间不同造成的问题。</li>
+<li>Frostbite 的 HDR 调色与显示演讲是 GDC 2017，不是 SIGGRAPH 2017。</li>
+<li>Call of Duty 的 HDR 显示管线出自 Paul Malin（WWII），Jimenez 2014 讲的是后处理。</li>
+<li>Mass Effect Andromeda 不是第一个 HDR PC 游戏，Hitman、Resident Evil 7 更早。</li>
+<li>Unity 的 HDR 输出在 HDRP 13.0 / Unity 2022.1，不是 2022.2；Bevy 的 Tony McMapface 默认始于 0.11 而非 0.12；Khronos PBR Neutral 发布于 2024 年 5 月而非 3 月。</li>
+<li>金的 F0 (0.944, 0.776, 0.373) 这组常见数值在任何一手来源里都找不到；Hoffman/RTR 给 (1.00, 0.71, 0.29)，Lagarde/UE 给 (1.000, 0.766, 0.336)。</li>
+<li>"ACES 白 = D60"：ACES 白点 (0.32168, 0.33767) 约 6000 K，但 CIE 没有 D60 标准光源。</li>
+</ul>
+<h3>9.4 未核实项</h3>
+<p>韦伯分数 1–2% 与"线性需约 12 bit"的原始出处（Poynton FAQ 无法抓取）；Rec.601 系数源于 NTSC 1953 原色的推导；DCI-P3 的"2007"日期；Mitsuba 3 与 pbrt-v4 每光线 4 个波长；Arnold 无光谱模式；Octane 光谱内核现状；OKHSL 细节；HLG 扩展系统伽马的 κ = 1.111；BT.2408 的 203 cd/m² 参考白；Blender Filmic 2.80 / AgX 4.0 的默认版本（手册未写版本史）；OCIO 2010 开源与 2021 v2.0 的精确日期；"BF4 用 LogLuv 渲染目标"；Call of Duty AW/IW 的渲染目标格式；D3D9 sRGB 状态与 D3D10 DXGI sRGB 格式的引入日期；UE Working Color Space 的 5.1 版本号（来自第三方文档）；Hosek–Wilkie 的 UV 通道数。</p>
+</section>
+<section id="s10">
+<h2><span class="num">10</span>来源</h2>
+<ul>
+<li><strong>色度学与色彩空间</strong>：CIE 1931/1964/170 页面与 cvrl.org；Bruce Lindbloom（RGB/XYZ 矩阵、色适应）http://www.brucelindbloom.com；CSS Color 4 https://drafts.csswg.org/css-color-4/；Ottosson, Oklab https://bottosson.github.io/posts/oklab/；BT.2100 ICtCp；Safdar 2017 Jzazbz；Li 2017 CAM16；CIE 248:2022；ACES 2.0 文档 https://docs.acescentral.com；Pointer 色域（TFTCentral）；NVIDIA ꟻLIP https://research.nvidia.com/publication/flip；Jakob–Hanika 2019 https://rgl.epfl.ch/publications/Jakob2019Spectral；Mallett–Yuksel 2019；Smits 1999。</li>
+<li><strong>传递函数与线性工作流</strong>：IEC 61966-2-1 / Wikipedia sRGB；ITU-R BT.709、BT.1886、BT.2020、BT.2100、BT.2390-1；SMPTE ST 2084；GPU Gems 3 第 24 章；Hable, Linear-Space Lighting (2010)；EXT_texture_sRGB、EXT_framebuffer_sRGB、EXT_packed_float、EXT_texture_shared_exponent；DXGI_FORMAT 与 DXGI_COLOR_SPACE_TYPE；Vulkan 格式与 VkColorSpaceKHR；Apple Metal HDR 文档；Android 广色域与 HDR 文档；Valve GDC 2008；Epic UDK Texturing Guidelines；Unity 5.5 发行说明与 Color Space 手册；Godot 渲染架构文档；Gjøl, Banding in Games https://loopit.dk/banding_in_games.pdf；Mavridis–Papaioannou 2012 Compact YCoCg；Porter–Duff 1984；Smith 1995；McDonald 2013；FreeType 文本渲染文档；WPF ClearType 注册表；Karis 2013 Tone mapping 博客；GPUOpen 可逆 tonemapper；glTF 2.0 与 KTX 2.0 规范；OpenEXR 技术介绍。</li>
+<li><strong>HDR 与色调映射</strong>：Lagarde &amp; de Rousiers, Moving Frostbite to PBR (2014) v3.2；Reinhard 2002；Hable filmicworlds.com（2010、2017）；Narkowicz 2016；Hill, BakingLab ACES.hlsl；Uchimura GT (2017)；Lottes GDC 2016 https://gpuopen.com/download/GdcVdrLottes.pdf；Khronos ToneMapping 仓库；Sobotka AgX 与 EaryChow/AgX；Wrensch Minimal AgX；Stachowiak tony-mc-mapface；Fry, HDR Color Grading and Display in Frostbite (GDC 2017)；Hart, UHD Color for Games (NVIDIA 2016)；Malin, HDR in Call of Duty；Microsoft DirectX HDR 与 Auto HDR 文档；HGIG v1.1；VESA DisplayHDR CTS 1.1/1.2；AMD FreeSync Premium Pro；Apple EDR 文档；Android HDR 博客（2025-09）；ACES 1.3 RGC 规范；UE 文档（Filmic、Auto Exposure、HDR 输出、Working Color Space、Local Exposure）；Unity HDRP 文档与源码（Exposure.cs、Color.hlsl、HDR Output）；Wikipedia 亮度/照度数量级表。</li>
+<li><strong>材质、光源与引擎</strong>：Filament 文档 https://google.github.io/filament/Filament.md.html；Karis 2013 Real Shading in UE4；Hoffman 2013 Physics and Math of Shading；Burley 2012 Disney BRDF；Lagarde 2011 Feeding a physically based lighting mode；Lagarde 2014 Dontnod chart；Substance PBR Guide；UE Physically Based Materials；physicallybased.info；glTF 2.0 Appendix B 与 KHR_materials_volume/iridescence/dispersion；Gulbrandsen 2014；Kulla–Conty 2017；Turquin 2019；Jimenez 2015 separable-sss；Christensen–Burley 2015；OpenPBR；Autodesk Standard Surface；Wikipedia Planckian locus（Kang 2002）；Frostbite 2014 表 4/7/8/11；Unity HDRP Physical Light Units；UE Physical Lighting Units；Bruneton 2008/2017；Hillaire 2016/2020；Preetham 1999；Hosek–Wilkie 2012；Debevec–Malik 1997；Ramamoorthi–Hanrahan 2001；pbrt-v4 第 4 章；Mitsuba 3 variants；Fascione 2018 Manuka；Ward 2002；Meng 2015；Blender 4.5 色彩管理手册与 4.0 发行说明；three.js r152 色彩管理说明；Bevy 0.11 发行说明；Godot 4.4 发行说明；Arnold 7、RenderMan 24 发行信息；OpenColorIO README。</li>
+</ul>
+</section>
+<footer><p>本地副本：research/渲染所需的颜色理论.md　·　姊妹篇：<a href="https://claude.ai/artifact/Gm6Fz44ChbEWzgZLb1323a">从帧缓冲到 GPU</a>、<a href="https://claude.ai/artifact/KaodE2u3PGsSshYsuvYNPj">NVIDIA 三十年</a>、<a href="https://claude.ai/artifact/VX58y7PjeCY2ZscZGGhcRP">从 BitBLT 到着色器</a>、<a href="https://claude.ai/artifact/Agh488WBCYMboxeQC65hVe">从点阵到着色器的字形</a>、<a href="https://claude.ai/artifact/9uGmM58GpM2oyoduHhUW76">三瓦特里的三角形</a></p></footer>
+</div>
